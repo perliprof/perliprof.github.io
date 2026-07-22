@@ -94,8 +94,8 @@ function login() {
 
 function showDashboard(role) {
   document.getElementById('auth-box').style.display = 'none';
-  document.getElementById('dashboard').style.display = '';
-  document.getElementById('logout-btn').style.display = '';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('role-label').textContent = role.label;
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];

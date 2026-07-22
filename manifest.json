@@ -1,0 +1,11 @@
+{
+  "name": "Perliprof · Soltera",
+  "short_name": "Perliprof",
+  "start_url": "/hub/",
+  "display": "standalone",
+  "background_color": "#0A2342",
+  "theme_color": "#0A2342",
+  "icons": [
+    { "src": "logo.png", "sizes": "any", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

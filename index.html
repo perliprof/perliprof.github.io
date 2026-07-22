@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Perliprof · Įrankiai v2</title>
+<title>Perliprof · Įrankiai</title>
 <meta name="theme-color" content="#0A2342">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; overflow-y: auto; }
 
 .logo { height: 52px; margin-bottom: 2rem; }
 
@@ -53,12 +53,14 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 </div>
 
 <div class="dashboard" id="dashboard">
-  <div class="welcome">
-    <div class="welcome-role" id="role-label"></div>
-    <div class="welcome-name">Sveiki! 👋</div>
+  <div class="welcome" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem">
+    <div>
+      <div class="welcome-role" id="role-label"></div>
+      <div class="welcome-name">Sveiki! 👋</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">← Atsijungti</button>
   </div>
   <div class="cards" id="cards"></div>
-  <div class="logout"><button class="logout-btn" onclick="logout()">Atsijungti</button></div>
 </div>
 
 <script>

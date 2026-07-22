@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perliprof · Įrankiai</title>
+<meta name="theme-color" content="#0A2342">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+
+.logo { height: 52px; margin-bottom: 2rem; }
+
+.auth-box { background: white; border-radius: 20px; padding: 2rem 2rem 1.75rem; width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); text-align: center; }
+.auth-title { font-size: 20px; font-weight: 800; color: #0A2342; margin-bottom: 4px; }
+.auth-sub { font-size: 13px; color: #6e6e73; margin-bottom: 1.25rem; }
+.auth-box input { width: 100%; font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; outline: none; margin-bottom: 0.75rem; }
+.auth-box input:focus { border-color: #0A2342; }
+.auth-btn { width: 100%; font-family: inherit; font-size: 15px; font-weight: 700; padding: 12px; border: none; border-radius: 10px; background: #0A2342; color: white; cursor: pointer; }
+.auth-btn:hover { background: #1A4F80; }
+.auth-msg { margin-top: 0.6rem; font-size: 13px; color: #C0392B; min-height: 16px; }
+
+.dashboard { display: none; width: 100%; max-width: 860px; }
+.welcome { text-align: center; margin-bottom: 2rem; }
+.welcome-role { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+.welcome-name { font-size: 28px; font-weight: 800; color: white; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+@media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
+.page-card { background: white; border-radius: 18px; padding: 1.75rem 1.5rem; text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; gap: 0.5rem; border-top: 5px solid; }
+.page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+.card-emoji { font-size: 36px; margin-bottom: 0.25rem; }
+.card-title { font-size: 17px; font-weight: 800; color: #0A2342; }
+.card-desc { font-size: 13px; color: #6e6e73; line-height: 1.5; }
+.logout { margin-top: 2rem; text-align: center; }
+.logout-btn { background: none; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.6); font-family: inherit; font-size: 13px; padding: 6px 16px; border-radius: 8px; cursor: pointer; }
+.logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+</style>
+</head>
+<body>
+
+<img src="logo.png" alt="Perliprof" class="logo">
+
+<div class="auth-box" id="auth-box">
+  <div class="auth-title">Perliprof įrankiai</div>
+  <p class="auth-sub">Įveskite savo prieigos kodą</p>
+  <input type="password" id="pw-input" placeholder="Kodas…" onkeydown="if(event.key==='Enter')login()">
+  <button class="auth-btn" onclick="login()">Prisijungti</button>
+  <div class="auth-msg" id="pw-msg"></div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="welcome">
+    <div class="welcome-role" id="role-label"></div>
+    <div class="welcome-name">Sveiki! 👋</div>
+  </div>
+  <div class="cards" id="cards"></div>
+  <div class="logout"><button class="logout-btn" onclick="logout()">Atsijungti</button></div>
+</div>
+
+<script>
+// ── KONFIGŪRACIJA ──
+// Pakeisk slaptažodžius į savus prieš naudojimą
+
+const ROLES = {
+  'dir2026': {
+    label: 'Direktorius',
+    pages: ['pardavimai', 'gamyba', 'pamainos'],
+    tokens: { gam_secret: 'gamyba2026' }
+  },
+  'vadovas2026': {
+    label: 'Gamybos vadovas',
+    pages: ['gamyba', 'pamainos'],
+    tokens: { gam_secret: 'gamyba2026' }
+  }
+};
+
+const PAGES = {
+  pardavimai: { title:'Pardavimų analizė', emoji:'📊', desc:'Užsakymai, klientai, pipeline', url:'https://perliprof.github.io/pardavimu-analize/', color:'#0A2342' },
+  gamyba:     { title:'Gamybos analizė',   emoji:'🏭', desc:'Produkcija, produktai, žaliavos', url:'https://perliprof.github.io/gamybos-analize/', color:'#7A3B00' },
+  pamainos:   { title:'Pamainos lenktynės',emoji:'🏆', desc:'Realaus laiko TV dashboard',  url:'https://perliprof.github.io/pamainos-lenktynes/', color:'#1A4F80' }
+};
+
+function login() {
+  const pw = document.getElementById('pw-input').value.trim();
+  const role = ROLES[pw];
+  if (!role) { document.getElementById('pw-msg').textContent = 'Neteisingas kodas.'; return; }
+  localStorage.setItem('hub_role', pw);
+  Object.entries(role.tokens || {}).forEach(([k,v]) => localStorage.setItem(k, v));
+  showDashboard(role);
+}
+
+function showDashboard(role) {
+  document.getElementById('auth-box').style.display = 'none';
+  document.getElementById('dashboard').style.display = '';
+  document.getElementById('role-label').textContent = role.label;
+  document.getElementById('cards').innerHTML = role.pages.map(pid => {
+    const p = PAGES[pid];
+    return `<a class="page-card" href="${p.url}" style="border-top-color:${p.color}">
+      <div class="card-emoji">${p.emoji}</div>
+      <div class="card-title">${p.title}</div>
+      <div class="card-desc">${p.desc}</div>
+    </a>`;
+  }).join('');
+}
+
+function logout() { localStorage.removeItem('hub_role'); location.reload(); }
+
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('hub_role');
+  const role = saved && ROLES[saved];
+  if (role) showDashboard(role);
+});
+</script>
+</body>
+</html>

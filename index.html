@@ -35,8 +35,7 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 .card-emoji { font-size: 36px; margin-bottom: 0.25rem; }
 .card-title { font-size: 17px; font-weight: 800; color: #0A2342; }
 .card-desc { font-size: 13px; color: #6e6e73; line-height: 1.5; }
-.logout { margin-top: 2rem; text-align: center; }
-.logout-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-family: inherit; font-size: 14px; font-weight: 600; padding: 9px 24px; border-radius: 10px; cursor: pointer; }
+.logout-btn { position: fixed; top: 1rem; right: 1rem; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 10px; cursor: pointer; z-index: 999; display: none; }
 .logout-btn:hover { background: rgba(255,255,255,0.25); }
 </style>
 </head>
@@ -53,15 +52,13 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 </div>
 
 <div class="dashboard" id="dashboard">
-  <div class="welcome" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem">
-    <div>
-      <div class="welcome-role" id="role-label"></div>
-      <div class="welcome-name">Sveiki! 👋</div>
-    </div>
-    <button class="logout-btn" onclick="logout()">← Atsijungti</button>
+  <div class="welcome">
+    <div class="welcome-role" id="role-label"></div>
+    <div class="welcome-name">Sveiki! 👋</div>
   </div>
   <div class="cards" id="cards"></div>
 </div>
+<button class="logout-btn" id="logout-btn" onclick="logout()">← Atsijungti</button>
 
 <script>
 // ── KONFIGŪRACIJA ──
@@ -98,6 +95,7 @@ function login() {
 function showDashboard(role) {
   document.getElementById('auth-box').style.display = 'none';
   document.getElementById('dashboard').style.display = '';
+  document.getElementById('logout-btn').style.display = '';
   document.getElementById('role-label').textContent = role.label;
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];

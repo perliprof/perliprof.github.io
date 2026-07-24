@@ -67,20 +67,22 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 const ROLES = {
   'dns6202': {
     label: 'Direktorius',
-    pages: ['pardavimai', 'gamyba', 'pamainos'],
+    pages: ['pardavimai', 'gamyba', 'pamainos', 'inventorizacija', 'iranga'],
     tokens: { gam_secret: 'gamyba2026', po_secret: 'Perlitas26!opr20' }
   },
   'aur26': {
     label: 'Gamybos vadovas',
-    pages: ['gamyba', 'pamainos'],
+    pages: ['gamyba', 'pamainos', 'inventorizacija', 'iranga'],
     tokens: { gam_secret: 'gamyba2026' }
   }
 };
 
 const PAGES = {
-  pardavimai: { title:'Pardavimų analizė', emoji:'📊', desc:'Užsakymai, klientai, pipeline', url:'https://perliprof.github.io/pardavimu-analize/', color:'#0A2342' },
-  gamyba:     { title:'Gamybos analizė',   emoji:'🏭', desc:'Produkcija, produktai, žaliavos', url:'https://perliprof.github.io/gamybos-analize/', color:'#7A3B00' },
-  pamainos:   { title:'Pamainos lenktynės',emoji:'🏆', desc:'Realaus laiko TV dashboard',  url:'https://perliprof.github.io/pamainos-lenktynes/', color:'#1A4F80' }
+  pardavimai:      { title:'Pardavimų analizė',  emoji:'📊', desc:'Užsakymai, klientai, pipeline',                        url:'https://perliprof.github.io/pardavimu-analize/',              color:'#0A2342' },
+  gamyba:          { title:'Gamybos analizė',    emoji:'🏭', desc:'Produkcija, produktai, žaliavos',                       url:'https://perliprof.github.io/gamybos-analize/',                color:'#7A3B00' },
+  pamainos:        { title:'Pamainos lenktynės', emoji:'🏆', desc:'Realaus laiko TV dashboard',                            url:'https://perliprof.github.io/pamainos-lenktynes/',             color:'#1A4F80' },
+  inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',          url:'https://perliprof.github.io/pamainos-lenktynes/inventorizacija.html', color:'#5a5a5a' },
+  iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'https://perliprof.github.io/pamainos-lenktynes/iranga.html', color:'#5a5a5a' }
 };
 
 function login() {

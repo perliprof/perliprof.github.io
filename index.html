@@ -101,9 +101,12 @@ function showDashboard(role) {
   document.getElementById('role-label').textContent = role.label;
   // Surenkam visus tokeno raktus iš role.tokens ir koduojam į URL hash
   const tokenStr = Object.entries(role.tokens || {}).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&');
+  const v = Math.floor(Date.now() / 3600000); // keičiasi kas valandą — verčia naršyklę imti naują versiją
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];
-    const url = tokenStr ? p.url + '#hub=' + encodeURIComponent(tokenStr) : p.url;
+    const sep = p.url.includes('?') ? '&' : '?';
+    const base = p.url + sep + 'v=' + v;
+    const url = tokenStr ? base + '#hub=' + encodeURIComponent(tokenStr) : base;
     return `<a class="page-card" href="${url}" style="border-top-color:${p.color}">
       <div class="card-emoji">${p.emoji}</div>
       <div class="card-title">${p.title}</div>

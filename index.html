@@ -170,7 +170,7 @@ function showDashboard(role) {
   }).join('');
 }
 
-const _v = Math.floor(Date.now() / 3600000); // keičiasi kas valandą
+const _v = Math.floor(Date.now() / 300000); // keičiasi kas 5 min
 function openFrame(pid) {
   const p = PAGES[pid];
   document.getElementById('frame-title').textContent = p.title;

@@ -152,10 +152,12 @@ function showDashboard(role) {
   }).join('');
 }
 
+const _v = Math.floor(Date.now() / 3600000); // keičiasi kas valandą
 function openFrame(pid) {
   const p = PAGES[pid];
   document.getElementById('frame-title').textContent = p.title;
-  document.getElementById('frame-view').src = p.url;
+  const sep = p.url.includes('?') ? '&' : '?';
+  document.getElementById('frame-view').src = p.url + sep + 'v=' + _v;
   document.getElementById('frame-overlay').classList.add('show');
 }
 

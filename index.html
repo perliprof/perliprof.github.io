@@ -96,8 +96,6 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
   <div class="perlite-layer l3"></div>
 </div>
 
-<img src="logo.png" alt="Perliprof" class="logo">
-
 <div class="auth-box" id="auth-box">
   <div class="auth-title">Perliprof įrankiai</div>
   <p class="auth-sub">Įveskite savo prieigos kodą</p>
@@ -109,7 +107,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 <div class="dashboard" id="dashboard">
   <div class="welcome">
     <div class="welcome-inner">
-      <img src="logo.png" alt="Perliprof" style="height:44px;filter:brightness(0) invert(1);margin-bottom:0.5rem;display:block;margin-left:auto;margin-right:auto">
+      <img src="logo.png" alt="Perliprof" style="height:70px;margin-bottom:0.5rem;display:block;margin-left:auto;margin-right:auto">
       <div class="welcome-role" id="role-label"></div>
       <div class="welcome-name">Sveiki! 👋</div>
     </div>
@@ -173,7 +171,7 @@ function showDashboard(role) {
   }).join('');
 }
 
-const _v = Math.floor(Date.now() / 300000); // keičiasi kas 5 min
+const _v = Math.floor(Date.now() / 300000) + '-v6'; // keičiasi kas 5 min
 function openFrame(pid) {
   const p = PAGES[pid];
   document.getElementById('frame-title').textContent = p.title;

@@ -99,9 +99,12 @@ function showDashboard(role) {
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('role-label').textContent = role.label;
+  // Surenkam visus tokeno raktus iš role.tokens ir koduojam į URL hash
+  const tokenStr = Object.entries(role.tokens || {}).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&');
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];
-    return `<a class="page-card" href="${p.url}" style="border-top-color:${p.color}">
+    const url = tokenStr ? p.url + '#hub=' + encodeURIComponent(tokenStr) : p.url;
+    return `<a class="page-card" href="${url}" style="border-top-color:${p.color}">
       <div class="card-emoji">${p.emoji}</div>
       <div class="card-title">${p.title}</div>
       <div class="card-desc">${p.desc}</div>

@@ -2,16 +2,15 @@
 <html lang="lt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Perliprof · Įrankiai</title>
 <meta name="theme-color" content="#0A2342">
 <link rel="apple-touch-icon" href="logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; overflow-y: auto; }
+body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; overflow-y: auto; }
 
 .logo { height: 52px; margin-bottom: 2rem; }
 
@@ -30,13 +29,50 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 .welcome-name { font-size: 28px; font-weight: 800; color: white; }
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
 @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
-.page-card { background: white; border-radius: 18px; padding: 1.75rem 1.5rem; text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; gap: 0.5rem; border-top: 5px solid; }
+.page-card { background: white; border-radius: 18px; padding: 1.75rem 1.5rem; text-decoration: none; color: inherit; cursor: pointer; border: none; font-family: inherit; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; gap: 0.5rem; border-top: 5px solid; width: 100%; text-align: left; }
 .page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
 .card-emoji { font-size: 36px; margin-bottom: 0.25rem; }
 .card-title { font-size: 17px; font-weight: 800; color: #0A2342; }
 .card-desc { font-size: 13px; color: #6e6e73; line-height: 1.5; }
 .logout-btn { position: fixed; top: 1rem; right: 1rem; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 10px; cursor: pointer; z-index: 999; display: none; }
 .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* ── iframe overlay ── */
+#frame-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  background: #000;
+}
+#frame-overlay.show { display: flex; }
+#frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #0A2342;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  flex-shrink: 0;
+}
+#frame-back {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#frame-title { color: white; font-size: 14px; font-weight: 700; opacity: 0.8; }
+#frame-view {
+  flex: 1;
+  border: none;
+  width: 100%;
+}
 </style>
 </head>
 <body>
@@ -60,10 +96,16 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A2342; mi
 </div>
 <button class="logout-btn" id="logout-btn" onclick="logout()">← Atsijungti</button>
 
-<script>
-// ── KONFIGŪRACIJA ──
-// Pakeisk slaptažodžius į savus prieš naudojimą
+<!-- iframe overlay -->
+<div id="frame-overlay">
+  <div id="frame-bar">
+    <button id="frame-back" onclick="closeFrame()">← Hub</button>
+    <span id="frame-title"></span>
+  </div>
+  <iframe id="frame-view" allow="fullscreen"></iframe>
+</div>
 
+<script>
 const ROLES = {
   'dns6202': {
     label: 'Direktorius',
@@ -78,11 +120,11 @@ const ROLES = {
 };
 
 const PAGES = {
-  pardavimai:      { title:'Pardavimų analizė',  emoji:'📊', desc:'Užsakymai, klientai, pipeline',                        url:'/pardavimu-analize/',              color:'#0A2342' },
-  gamyba:          { title:'Gamybos analizė',    emoji:'🏭', desc:'Produkcija, produktai, žaliavos',                       url:'/gamybos-analize/',                color:'#7A3B00' },
-  pamainos:        { title:'Pamainos lenktynės', emoji:'🏆', desc:'Realaus laiko TV dashboard',                            url:'/pamainos-lenktynes/',             color:'#1A4F80' },
-  inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',          url:'/pamainos-lenktynes/inventorizacija.html', color:'#5a5a5a' },
-  iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'/pamainos-lenktynes/iranga.html', color:'#5a5a5a' }
+  pardavimai:      { title:'Pardavimų analizė',  emoji:'📊', desc:'Užsakymai, klientai, pipeline',                              url:'/pardavimu-analize/',                      color:'#0A2342' },
+  gamyba:          { title:'Gamybos analizė',    emoji:'🏭', desc:'Produkcija, produktai, žaliavos',                             url:'/gamybos-analize/',                        color:'#7A3B00' },
+  pamainos:        { title:'Pamainos lenktynės', emoji:'🏆', desc:'Realaus laiko TV dashboard',                                  url:'/pamainos-lenktynes/',                     color:'#1A4F80' },
+  inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',                url:'/pamainos-lenktynes/inventorizacija.html', color:'#5a5a5a' },
+  iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'/pamainos-lenktynes/iranga.html',        color:'#5a5a5a' }
 };
 
 function login() {
@@ -99,20 +141,26 @@ function showDashboard(role) {
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('role-label').textContent = role.label;
-  // Surenkam visus tokeno raktus iš role.tokens ir koduojam į URL hash
-  const tokenStr = Object.entries(role.tokens || {}).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&');
-  const v = Math.floor(Date.now() / 3600000); // keičiasi kas valandą — verčia naršyklę imti naują versiją
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];
-    const sep = p.url.includes('?') ? '&' : '?';
-    const base = p.url + sep + 'v=' + v;
-    const url = tokenStr ? base + '#hub=' + encodeURIComponent(tokenStr) : base;
-    return `<a class="page-card" href="${url}" style="border-top-color:${p.color}">
+    return `<button class="page-card" onclick="openFrame('${pid}')" style="border-top-color:${p.color}">
       <div class="card-emoji">${p.emoji}</div>
       <div class="card-title">${p.title}</div>
       <div class="card-desc">${p.desc}</div>
-    </a>`;
+    </button>`;
   }).join('');
+}
+
+function openFrame(pid) {
+  const p = PAGES[pid];
+  document.getElementById('frame-title').textContent = p.title;
+  document.getElementById('frame-view').src = p.url;
+  document.getElementById('frame-overlay').classList.add('show');
+}
+
+function closeFrame() {
+  document.getElementById('frame-overlay').classList.remove('show');
+  document.getElementById('frame-view').src = '';
 }
 
 function logout() { localStorage.removeItem('hub_role'); location.reload(); }

@@ -25,6 +25,7 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 
 .dashboard { display: none; width: 100%; max-width: 860px; }
 .welcome { text-align: center; margin-bottom: 2rem; }
+.welcome-inner { display: inline-block; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 20px; padding: 1.25rem 2rem; }
 .welcome-role { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
 .welcome-name { font-size: 28px; font-weight: 800; color: white; }
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
@@ -107,9 +108,11 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 
 <div class="dashboard" id="dashboard">
   <div class="welcome">
-    <div class="welcome-role" id="role-label"></div>
-    <div class="welcome-name">Sveiki! 👋</div>
-    <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">v4</div>
+    <div class="welcome-inner">
+      <img src="logo.png" alt="Perliprof" style="height:44px;filter:brightness(0) invert(1);margin-bottom:0.5rem;display:block;margin-left:auto;margin-right:auto">
+      <div class="welcome-role" id="role-label"></div>
+      <div class="welcome-name">Sveiki! 👋</div>
+    </div>
   </div>
   <div class="cards" id="cards"></div>
 </div>

@@ -129,19 +129,20 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 const ROLES = {
   'dns6202': {
     label: 'Direktorius',
-    pages: ['pardavimai', 'gamyba', 'pamainos', 'inventorizacija', 'iranga'],
-    tokens: { gam_secret: 'gamyba2026', po_secret: 'Perlitas26!opr20' }
+    pages: ['pardavimai', 'gamyba', 'zaliavos', 'pamainos', 'inventorizacija', 'iranga'],
+    tokens: { gam_secret: 'gamyba2026', zal_secret: 'gamyba2026', po_secret: 'Perlitas26!opr20' }
   },
   'aur26': {
     label: 'Gamybos vadovas',
-    pages: ['gamyba', 'pamainos', 'inventorizacija', 'iranga'],
-    tokens: { gam_secret: 'gamyba2026' }
+    pages: ['gamyba', 'zaliavos', 'pamainos', 'inventorizacija', 'iranga'],
+    tokens: { gam_secret: 'gamyba2026', zal_secret: 'gamyba2026' }
   }
 };
 
 const PAGES = {
   pardavimai:      { title:'Pardavimų analizė',  emoji:'📊', desc:'Užsakymai, klientai, pipeline',                              url:'/pardavimu-analize/',                      color:'#5C7C28' },
-  gamyba:          { title:'Gamybos analizė',    emoji:'🏭', desc:'Produkcija, produktai, žaliavos',                             url:'/gamybos-analize/',                        color:'#7BA935' },
+  gamyba:          { title:'Gamybos analizė',    emoji:'🏭', desc:'Produkcija, produktai, pamainos',                            url:'/gamybos-analize/',                        color:'#7BA935' },
+  zaliavos:        { title:'Žaliavos analizė',   emoji:'🪨', desc:'Efektyvumas, atlieka, energija, produktų pasiskirstymas',    url:'/zaliavos-analize/',                       color:'#7C4A1E' },
   pamainos:        { title:'Pamainos lenktynės', emoji:'🏆', desc:'Realaus laiko TV dashboard',                                  url:'/pamainos-lenktynes/',                     color:'#A8D44A' },
   inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',                url:'/pamainos-lenktynes/inventorizacija.html', color:'#3a3a3a' },
   iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'/pamainos-lenktynes/iranga.html',        color:'#3a3a3a' }

@@ -38,6 +38,26 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .logout-btn { position: fixed; top: 1rem; right: 1rem; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 10px; cursor: pointer; z-index: 999; display: none; }
 .logout-btn:hover { background: rgba(255,255,255,0.25); }
 
+/* ── KPI Dashboard (Direktorius) ── */
+.kpi-dash { width: 100%; max-width: 1100px; }
+.kpi-sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 1.5rem; }
+@media (max-width: 900px) { .kpi-sections { grid-template-columns: 1fr; } }
+.kpi-sec { background: rgba(255,255,255,0.07); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 1.3rem 1.3rem 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.kpi-sec-hdr { display: flex; align-items: center; justify-content: space-between; }
+.kpi-sec-title { font-size: 15px; font-weight: 800; color: white; display: flex; align-items: center; gap: 6px; }
+.kpi-open-btn { font-family: inherit; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; padding: 5px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.kpi-open-btn:hover { background: rgba(255,255,255,0.28); }
+.kpi-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.kpi-tile { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 0.75rem 0.8rem; }
+.kpi-tile-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.kpi-tile-val { font-size: 22px; font-weight: 800; color: white; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi-tile-sub { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+.kpi-tile.warn .kpi-tile-val { color: #F6A623; }
+.kpi-tile.alert .kpi-tile-val { color: #FF6B6B; }
+.kpi-tile.good .kpi-tile-val { color: #7ED321; }
+.kpi-loading { font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; padding: 1rem 0; }
+.kpi-updated { font-size: 10px; color: rgba(255,255,255,0.3); text-align: right; margin-top: 0.25rem; }
+
 /* ── Krentantis perlitas ── */
 .perlite-fall { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .perlite-layer { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 200%; background-image: url('https://perlite.lt/images/falling-perlite.png'); background-repeat: repeat; background-size: 600px; will-change: transform; mix-blend-mode: screen; }
@@ -113,6 +133,40 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
     </div>
   </div>
   <div class="cards" id="cards"></div>
+
+  <!-- KPI Dashboard — tik Direktoriaus rolei -->
+  <div class="kpi-dash" id="kpi-dash" style="display:none">
+    <div class="kpi-sections">
+
+      <div class="kpi-sec">
+        <div class="kpi-sec-hdr">
+          <span class="kpi-sec-title">📊 Pardavimai</span>
+          <button class="kpi-open-btn" onclick="openFrame('pardavimai')">Atidaryti →</button>
+        </div>
+        <div class="kpi-tiles" id="kpi-pardavimai"><div class="kpi-loading">Kraunama…</div></div>
+        <div class="kpi-updated" id="kpi-pardavimai-upd"></div>
+      </div>
+
+      <div class="kpi-sec">
+        <div class="kpi-sec-hdr">
+          <span class="kpi-sec-title">🏭 Gamyba</span>
+          <button class="kpi-open-btn" onclick="openFrame('gamyba')">Atidaryti →</button>
+        </div>
+        <div class="kpi-tiles" id="kpi-gamyba"><div class="kpi-loading">Kraunama…</div></div>
+        <div class="kpi-updated" id="kpi-gamyba-upd"></div>
+      </div>
+
+      <div class="kpi-sec">
+        <div class="kpi-sec-hdr">
+          <span class="kpi-sec-title">🪨 Žaliavos</span>
+          <button class="kpi-open-btn" onclick="openFrame('zaliavos')">Atidaryti →</button>
+        </div>
+        <div class="kpi-tiles" id="kpi-zaliavos"><div class="kpi-loading">Kraunama…</div></div>
+        <div class="kpi-updated" id="kpi-zaliavos-upd"></div>
+      </div>
+
+    </div>
+  </div>
 </div>
 <button class="logout-btn" id="logout-btn" onclick="logout()">← Atsijungti</button>
 
@@ -128,9 +182,20 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 <script>
 const ROLES = {
   'dns6202': {
-    label: 'Direktorius',
+    label: 'Administracija',
     pages: ['pardavimai', 'gamyba', 'zaliavos', 'pamainos', 'inventorizacija', 'iranga'],
     tokens: { gam_secret: 'Prl2026gam!', zal_secret: 'Prl2026gam!', po_secret: 'Perlitas26!opr20' }
+  },
+  'Dir26xPrl!': {
+    label: 'Direktorius',
+    type: 'kpi',
+    pages: ['pardavimai', 'gamyba', 'zaliavos', 'pamainos'],
+    tokens: { gam_secret: 'Prl2026gam!', zal_secret: 'Prl2026gam!', po_secret: 'Perlitas26!opr20' }
+  },
+  'GV26prl!': {
+    label: 'Gamybos vadovas',
+    pages: ['gamyba', 'zaliavos', 'pamainos'],
+    tokens: { gam_secret: 'Prl2026gam!', zal_secret: 'Prl2026gam!' }
   }
 };
 
@@ -142,6 +207,11 @@ const PAGES = {
   inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',                url:'/pamainos-lenktynes/inventorizacija.html', color:'#3a3a3a' },
   iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'/pamainos-lenktynes/iranga.html',        color:'#3a3a3a' }
 };
+
+// ── KPI duomenų šaltiniai ──
+const GAMYBA_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRGeNdfu4A-DOF4jONXpTCKaSkE1uUpLXa94HHkNPw1mhIoWHNcKwhvoSL22Nh48DEV2DDMZ1KXprI/pub?output=csv';
+const ZALIAVA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRGeNdfu4A-DOF4jONXpTCKaSkE1uUpLXa94HHkNPw1mhIoWHNcKwhvoSL22Nh48DEV2DDMZ1KXprI/pub?gid=683417168&single=true&output=csv';
+const PO_ENDPOINT = 'https://script.google.com/macros/s/AKfycbz3O2FzFkxgoEOmNKvBxtKpVr6lVAX-VAPzvZSkJb4NL_dCUtGqqFYwSFPFeeeqY6Nk/exec';
 
 function login() {
   const pw = document.getElementById('pw-input').value.trim();
@@ -157,17 +227,172 @@ function showDashboard(role) {
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('role-label').textContent = role.label;
-  document.getElementById('cards').innerHTML = role.pages.map(pid => {
-    const p = PAGES[pid];
-    return `<button class="page-card" onclick="openFrame('${pid}')" style="border-top-color:${p.color}">
-      <div class="card-emoji">${p.emoji}</div>
-      <div class="card-title">${p.title}</div>
-      <div class="card-desc">${p.desc}</div>
-    </button>`;
-  }).join('');
+
+  if (role.type === 'kpi') {
+    document.getElementById('cards').style.display = 'none';
+    document.getElementById('kpi-dash').style.display = '';
+    loadAllKpi();
+    setInterval(loadAllKpi, 5 * 60 * 1000);
+  } else {
+    document.getElementById('cards').style.display = '';
+    document.getElementById('kpi-dash').style.display = 'none';
+    document.getElementById('cards').innerHTML = role.pages.map(pid => {
+      const p = PAGES[pid];
+      return `<button class="page-card" onclick="openFrame('${pid}')" style="border-top-color:${p.color}">
+        <div class="card-emoji">${p.emoji}</div>
+        <div class="card-title">${p.title}</div>
+        <div class="card-desc">${p.desc}</div>
+      </button>`;
+    }).join('');
+  }
 }
 
-const _v = Math.floor(Date.now() / 300000) + '-v6'; // keičiasi kas 5 min
+// ── CSV parser ──
+function parseCSV(text) {
+  const rows = []; let cur = '', inQ = false, cells = [];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') inQ = !inQ;
+    else if (c === ',' && !inQ) { cells.push(cur); cur = ''; }
+    else if ((c === '\n' || c === '\r') && !inQ) {
+      cells.push(cur); cur = '';
+      if (cells.some(Boolean)) rows.push([...cells]);
+      cells = [];
+      if (c === '\r' && text[i+1] === '\n') i++;
+    } else cur += c;
+  }
+  if (cells.length || cur) { cells.push(cur); if (cells.some(Boolean)) rows.push(cells); }
+  return rows;
+}
+function n(v) { const x = parseFloat(String(v||'').replace(',','.')); return isNaN(x) ? 0 : x; }
+function fmtN(v, dec=0) { return Number(v).toLocaleString('lt-LT', {maximumFractionDigits:dec}); }
+function tile(label, val, sub='', cls='') {
+  return `<div class="kpi-tile ${cls}"><div class="kpi-tile-label">${label}</div><div class="kpi-tile-val">${val}</div>${sub?`<div class="kpi-tile-sub">${sub}</div>`:''}</div>`;
+}
+function nowStr() { return new Date().toLocaleTimeString('lt-LT',{hour:'2-digit',minute:'2-digit'}); }
+
+// ── Pardavimai KPI ──
+async function loadKpiPardavimai() {
+  const el = document.getElementById('kpi-pardavimai');
+  try {
+    const token = localStorage.getItem('po_secret') || '';
+    const res = await Promise.race([
+      fetch(PO_ENDPOINT, { method:'POST', body: JSON.stringify({ mode:'read', token }) }),
+      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 18000))
+    ]);
+    const js = await res.json();
+    if (!js.ok) throw new Error(js.error);
+    const rows = parseCSV(js.csv);
+    // Antraštė 3-ioje eilutėje (HEADER_ROW=3), duomenys nuo 4-tos
+    const hdr = rows[2] || [];
+    const fi = name => hdr.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+    const iDate = fi('uzsakymo_data') < 0 ? 1 : fi('uzsakymo_data');
+    const iKrov = fi('krovimo_data') < 0 ? 2 : fi('krovimo_data');
+    const iBus  = fi('busena') < 0 ? 7 : fi('busena');
+    const iM3   = fi('m3') < 0 ? 10 : fi('m3');
+    const data = rows.slice(3).filter(r => r[iDate] && r[iDate].trim() && !/^data$/i.test(r[iDate].trim()));
+
+    const today = new Date().toISOString().slice(0,10);
+    const moStr = today.slice(0,7);
+    const delivered = ['pristatyta','atšaukta','atšauktas'];
+
+    const active  = data.filter(r => !delivered.includes((r[iBus]||'').trim().toLowerCase()));
+    const velDate = new Date(); velDate.setHours(0,0,0,0);
+    const veluoja = active.filter(r => { const d = (r[iKrov]||'').slice(0,10); return d && d < today; });
+    const siandien= data.filter(r => (r[iKrov]||'').slice(0,10) === today);
+    const menM3   = data.filter(r => (r[iDate]||'').slice(0,7) === moStr).reduce((s,r)=>s+n(r[iM3]),0);
+
+    el.innerHTML =
+      tile('Aktyvūs', active.length, 'užsakymai', active.length > 0 ? 'good' : '') +
+      tile('Vėluoja', veluoja.length, 'praėjo krovimo data', veluoja.length > 0 ? 'alert' : '') +
+      tile('Šiandien kroviniai', siandien.length, today) +
+      tile('Mėnesio m³', fmtN(menM3,1), moStr);
+    document.getElementById('kpi-pardavimai-upd').textContent = 'Atnaujinta ' + nowStr();
+  } catch(e) {
+    el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+  }
+}
+
+// ── Gamyba KPI ──
+async function loadKpiGamyba() {
+  const el = document.getElementById('kpi-gamyba');
+  try {
+    const res = await fetch(GAMYBA_URL + '&t=' + Date.now());
+    const rows = parseCSV(await res.text());
+    if (rows.length < 2) throw new Error('Nėra duomenų');
+    const hdr = rows[0];
+    const fi = name => hdr.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+    const iDate = 0, iPam = 1;
+    const prodCols = hdr.map((h,i) => ({ i, h: h.trim() })).filter(x => / m3$| m³$/.test(x.h) && !/zaliava/i.test(x.h));
+
+    const data = rows.slice(1).filter(r => r[iDate] && r[iDate].trim());
+    if (!data.length) throw new Error('Nėra duomenų');
+
+    const today = new Date().toISOString().slice(0,10);
+    const d7 = new Date(); d7.setDate(d7.getDate()-7);
+    const moStr = today.slice(0,7);
+
+    const rowM3 = r => prodCols.reduce((s,c)=>s+n(r[c.i]),0);
+    const lastRow = data[data.length-1];
+    const lastM3  = rowM3(lastRow);
+    const weekM3  = data.filter(r => r[iDate]>=d7.toISOString().slice(0,10)).reduce((s,r)=>s+rowM3(r),0);
+    const monM3   = data.filter(r => r[iDate].slice(0,7)===moStr).reduce((s,r)=>s+rowM3(r),0);
+
+    el.innerHTML =
+      tile('Paskutinė pamaina', lastRow[iDate]||'—', (lastRow[iPam]||'') + (lastM3 ? ' · '+fmtN(lastM3)+' m³' : '')) +
+      tile('Savaitės m³', fmtN(weekM3,1), '7 dienos', weekM3 > 0 ? 'good' : '') +
+      tile('Mėnesio m³', fmtN(monM3,1), moStr) +
+      tile('Iš viso dienų', data.length, 'su duomenimis');
+    document.getElementById('kpi-gamyba-upd').textContent = 'Atnaujinta ' + nowStr();
+  } catch(e) {
+    el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+  }
+}
+
+// ── Žaliavos KPI ──
+async function loadKpiZaliavos() {
+  const el = document.getElementById('kpi-zaliavos');
+  try {
+    const res = await fetch(ZALIAVA_URL + '&t=' + Date.now());
+    const rows = parseCSV(await res.text());
+    if (rows.length < 2) throw new Error('Nėra duomenų');
+    const hdr = rows[0];
+    const fi = name => hdr.findIndex(h => h.trim().toLowerCase() === name.trim().toLowerCase());
+    const iDate = fi('data'), iKgh = fi('kg/h žaliavos produktui');
+    const iPag = fi('Pagaminta viso'), iUzp = fi('Užpilta žaliavos');
+    const STAMBUS_IDX = [2,3,4]; // Extra, Medium, X
+    const iProd = ['Produktas 0-0.4mm kg','Produktas 0.2-0.6mm smulkus kg','Produktas 0.4-3.5mm Extra','Produktas 0.6-1.2mm Medium kg','Produktas X'].map(c=>fi(c));
+
+    const data = rows.slice(1).filter(r => r[iDate] && r[iDate].trim());
+    if (!data.length) throw new Error('Nėra duomenų');
+
+    const last = data[data.length-1];
+    const avgKgh = data.filter(r=>n(r[iKgh])>0).reduce((s,r,_,a)=>s+n(r[iKgh])/a.length,0);
+
+    // Efektyvumas iš visų duomenų
+    const stambus  = data.reduce((s,r)=>s+STAMBUS_IDX.reduce((ss,i)=>ss+n(r[iProd[i]]),0),0);
+    const visiProd = data.reduce((s,r)=>s+iProd.reduce((ss,i)=>ss+(i>=0?n(r[i]):0),0),0);
+    const eff = visiProd > 0 ? Math.round(stambus/visiProd*100) : null;
+
+    el.innerHTML =
+      tile('Paskutinis įrašas', last[iDate]||'—', '') +
+      tile('Efektyvumas', eff!=null ? eff+'%' : '—', 'stambūs / visi prod.', eff==null?'':eff>=75?'good':eff>=55?'warn':'alert') +
+      tile('kg/h vidurkis', avgKgh ? fmtN(avgKgh) : '—', 'žaliavos produktui') +
+      tile('Dienų', data.length, 'su duomenimis');
+    document.getElementById('kpi-zaliavos-upd').textContent = 'Atnaujinta ' + nowStr();
+  } catch(e) {
+    el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+  }
+}
+
+function loadAllKpi() {
+  loadKpiPardavimai();
+  loadKpiGamyba();
+  loadKpiZaliavos();
+}
+
+// ── Frame ──
+const _v = Math.floor(Date.now() / 300000) + '-v6';
 function openFrame(pid) {
   const p = PAGES[pid];
   document.getElementById('frame-title').textContent = p.title;

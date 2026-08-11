@@ -64,10 +64,18 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .d-section-title { font-size:11px; font-weight:700; color:#8e8e93; text-transform:uppercase; letter-spacing:1px; margin:1rem 0 0.5rem; }
 .d-item { background:white; border-radius:14px; padding:1rem 1.1rem; margin-bottom:0.6rem; box-shadow:0 1px 3px rgba(0,0,0,0.07); display:flex; gap:0.8rem; align-items:flex-start; transition:opacity 0.2s; }
 .d-item.done-item { opacity:0.55; }
-.d-status-btn { flex-shrink:0; font-family:inherit; font-size:11px; font-weight:800; padding:4px 9px; border-radius:20px; border:2px solid; cursor:pointer; white-space:nowrap; transition:all 0.15s; margin-top:2px; }
-.d-status-btn.nepradeta { color:#8e8e93; background:#f0f0f0; border-color:#d0d0d0; }
-.d-status-btn.vykdoma   { color:#7A5200; background:#FFF3CD; border-color:#F6A623; }
-.d-status-btn.padaryta  { color:#2E7D32; background:#EAF5E9; border-color:#81C784; }
+.d-status-wrap { flex-shrink:0; display:flex; flex-direction:column; gap:4px; margin-top:2px; }
+.d-status-btn { font-family:inherit; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; border:2px solid; cursor:pointer; white-space:nowrap; transition:all 0.15s; text-align:center; }
+.d-status-btn.nepradeta { color:#9B1C1C; background:#FEE2E2; border-color:#F87171; }
+.d-status-btn.vykdoma   { color:#78350F; background:#FEF3C7; border-color:#FBBF24; }
+.d-status-btn.baigta    { color:#14532D; background:#DCFCE7; border-color:#4ADE80; }
+.d-status-picker { display:flex; flex-direction:column; gap:3px; }
+.d-status-opt { font-family:inherit; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; border:2px solid; cursor:pointer; white-space:nowrap; opacity:0.45; transition:all 0.12s; }
+.d-status-opt:hover { opacity:1; transform:scale(1.05); }
+.d-status-opt.nepradeta { color:#9B1C1C; background:#FEE2E2; border-color:#F87171; }
+.d-status-opt.vykdoma   { color:#78350F; background:#FEF3C7; border-color:#FBBF24; }
+.d-status-opt.baigta    { color:#14532D; background:#DCFCE7; border-color:#4ADE80; }
+.d-status-opt.active    { opacity:1; }
 .d-content { flex:1; min-width:0; }
 .d-text { font-size:14px; font-weight:600; color:#1a1a1a; line-height:1.4; margin-bottom:4px; }
 .d-item.done-item .d-text { text-decoration:line-through; color:#8e8e93; }
@@ -320,8 +328,8 @@ function showDashboard(role) {
     const isDarbai = pid === 'darbai';
     const hasKpi   = isDir && KPI_CARDS.has(pid);
 
-    const activeCnt = isDarbai ? loadTasks().filter(t => !t.done).length : 0;
-    const overdueCnt = isDarbai ? loadTasks().filter(t => !t.done && t.due && t.due < new Date().toISOString().slice(0,10)).length : 0;
+    const activeCnt  = isDarbai ? loadTasks().filter(t => _taskStatus(t) !== 'baigta').length : 0;
+    const overdueCnt = isDarbai ? loadTasks().filter(t => _taskStatus(t) !== 'baigta' && t.due && t.due < new Date().toISOString().slice(0,10)).length : 0;
     const badgeHtml = isDarbai
       ? `<span class="card-badge" id="darbai-badge" style="${overdueCnt>0?'background:#C0392B':'background:#5C7C28'}">${activeCnt}</span>`
       : '';
@@ -525,11 +533,12 @@ function closeFrame() {
 // ── Darbai task management ──
 const DARBAI_KEY = 'hub_darbai_v1';
 const STATUSES = [
-  { id:'nepradeta', label:'Nepradėta', next:'vykdoma'  },
-  { id:'vykdoma',   label:'Vykdoma',   next:'padaryta' },
-  { id:'padaryta',  label:'Padaryta',  next:'nepradeta' },
+  { id:'nepradeta', label:'Nepradėta' },
+  { id:'vykdoma',   label:'Vykdoma'   },
+  { id:'baigta',    label:'Baigta'    },
 ];
-function _taskStatus(t) { return t.status || (t.done ? 'padaryta' : 'nepradeta'); }
+function _taskStatus(t) { return t.status || (t.done ? 'baigta' : 'nepradeta'); }
+let _openStatusPicker = null;
 const CATEGORIES = [
   { id:'atsargines', label:'🔩 Atsarginės dalys', color:'#7C4A1E', bg:'#FFF3E0' },
   { id:'klientai',   label:'🤝 Klientai',          color:'#1E5C7C', bg:'#E3F2FD' },
@@ -597,16 +606,20 @@ function addTask() {
   _refreshDarbaiBar();
 }
 
-function cycleStatus(id) {
+function openStatusPicker(id) {
+  _openStatusPicker = _openStatusPicker === id ? null : id;
+  renderTasks();
+}
+
+function setStatus(id, newStatus) {
   const tasks = loadTasks();
   const t = tasks.find(x => x.id === id);
   if (!t) return;
-  const cur = _taskStatus(t);
-  const st = STATUSES.find(s => s.id === cur) || STATUSES[0];
-  t.status = st.next;
-  t.done   = t.status === 'padaryta';
+  t.status = newStatus;
+  t.done   = newStatus === 'baigta';
   t.doneAt = t.done ? new Date().toISOString().slice(0,10) : null;
   saveTasks(tasks);
+  _openStatusPicker = null;
   renderTasks();
   _refreshDarbaiBar();
 }
@@ -654,7 +667,7 @@ function _refreshDarbaiBar() {
   const badge = document.getElementById('darbai-badge');
   if (!badge) return;
   const today = new Date().toISOString().slice(0,10);
-  const active = loadTasks().filter(t => _taskStatus(t) !== 'padaryta');
+  const active = loadTasks().filter(t => _taskStatus(t) !== 'baigta');
   const overdue = active.filter(t => t.due && t.due < today);
   badge.textContent = active.length;
   badge.style.background = overdue.length > 0 ? '#C0392B' : '#5C7C28';
@@ -664,8 +677,8 @@ function _refreshDarbaiBar() {
 function renderTasks() {
   const tasks = loadTasks();
   const today = new Date().toISOString().slice(0,10);
-  const active = tasks.filter(t => _taskStatus(t) !== 'padaryta');
-  const done   = tasks.filter(t => _taskStatus(t) === 'padaryta');
+  const active = tasks.filter(t => _taskStatus(t) !== 'baigta');
+  const done   = tasks.filter(t => _taskStatus(t) === 'baigta');
   const el = document.getElementById('d-list');
 
   const dueBadge = t => {
@@ -679,7 +692,7 @@ function renderTasks() {
     const c = CATEGORIES.find(x => x.id === t.cat) || CATEGORIES[5];
     const st = _taskStatus(t);
     const stDef = STATUSES.find(s => s.id === st) || STATUSES[0];
-    const isDone = st === 'padaryta';
+    const isDone = st === 'baigta';
     const isOverdue = !isDone && t.due && t.due < today;
     const comments = t.comments || [];
     const commOpen = _openComments.has(t.id);
@@ -705,8 +718,15 @@ function renderTasks() {
         </div>
       </div>`;
 
+    const pickerOpen = _openStatusPicker === t.id;
+    const statusHtml = pickerOpen
+      ? `<div class="d-status-picker">${STATUSES.map(s =>
+          `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus(${t.id},'${s.id}')">${s.label}</button>`
+        ).join('')}</div>`
+      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})">${stDef.label} ▾</button>`;
+
     return `<div class="d-item${isDone?' done-item':''}${isOverdue?' overdue':''}">
-      <button class="d-status-btn ${st}" onclick="cycleStatus(${t.id})">${stDef.label}</button>
+      <div class="d-status-wrap">${statusHtml}</div>
       <div class="d-content">
         <div class="d-text">${_esc(t.text)}</div>
         <div class="d-meta">

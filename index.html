@@ -75,6 +75,19 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .d-date { font-size:11px; color:#8e8e93; }
 .d-del { background:none; border:none; color:#c0c0c0; font-size:18px; cursor:pointer; padding:0 0 0 6px; flex-shrink:0; line-height:1; }
 .d-del:hover { color:#C0392B; }
+.d-comment-toggle { background:none; border:none; font-family:inherit; font-size:11px; font-weight:700; color:#8e8e93; cursor:pointer; padding:4px 0 0; display:inline-flex; align-items:center; gap:4px; }
+.d-comment-toggle:hover { color:#1a1a1a; }
+.d-comments-area { margin-top:8px; border-top:1px solid #f0f0f0; padding-top:8px; display:none; }
+.d-comments-area.open { display:block; }
+.d-comment-item { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
+.d-comment-bubble { flex:1; background:#f5f5f7; border-radius:8px; padding:6px 10px; font-size:13px; color:#1a1a1a; line-height:1.4; }
+.d-comment-date { font-size:10px; color:#aaa; margin-top:2px; }
+.d-comment-del { background:none; border:none; color:#d0d0d0; font-size:15px; cursor:pointer; padding:0; flex-shrink:0; margin-top:3px; line-height:1; }
+.d-comment-del:hover { color:#C0392B; }
+.d-comment-input-row { display:flex; gap:6px; margin-top:4px; }
+.d-comment-input-row input { flex:1; font-family:inherit; font-size:13px; padding:7px 10px; border:1.5px solid #e0e0e0; border-radius:8px; outline:none; }
+.d-comment-input-row input:focus { border-color:#0A0A0A; }
+.d-comment-input-row button { font-family:inherit; font-size:12px; font-weight:700; padding:7px 12px; border:none; border-radius:8px; background:#0A0A0A; color:white; cursor:pointer; white-space:nowrap; }
 .d-due-row { display:flex; align-items:center; gap:8px; margin-bottom:0.7rem; }
 .d-due-row label { font-size:12px; font-weight:700; color:#6e6e73; white-space:nowrap; }
 .d-due-row input[type=date] { font-family:inherit; font-size:13px; padding:5px 10px; border:1.5px solid #e0e0e0; border-radius:8px; outline:none; color:#1a1a1a; }
@@ -593,6 +606,39 @@ function deleteTask(id) {
   _refreshDarbaiBar();
 }
 
+// ── Komentarai ──
+const _openComments = new Set(); // task id's su atidarytais komentarais
+
+function toggleComments(id) {
+  if (_openComments.has(id)) _openComments.delete(id);
+  else _openComments.add(id);
+  renderTasks();
+}
+
+function addComment(taskId) {
+  const inp = document.getElementById('d-cin-' + taskId);
+  if (!inp) return;
+  const txt = inp.value.trim();
+  if (!txt) return;
+  const tasks = loadTasks();
+  const t = tasks.find(x => x.id === taskId);
+  if (!t) return;
+  if (!t.comments) t.comments = [];
+  t.comments.push({ id: Date.now(), text: txt, date: new Date().toISOString().slice(0,10) });
+  saveTasks(tasks);
+  _openComments.add(taskId);
+  renderTasks();
+}
+
+function deleteComment(taskId, commentId) {
+  const tasks = loadTasks();
+  const t = tasks.find(x => x.id === taskId);
+  if (!t || !t.comments) return;
+  t.comments = t.comments.filter(c => c.id !== commentId);
+  saveTasks(tasks);
+  renderTasks();
+}
+
 function _refreshDarbaiBar() {
   const badge = document.getElementById('darbai-badge');
   if (!badge) return;
@@ -621,6 +667,30 @@ function renderTasks() {
   const renderItem = t => {
     const c = CATEGORIES.find(x => x.id === t.cat) || CATEGORIES[5];
     const isOverdue = !t.done && t.due && t.due < today;
+    const comments = t.comments || [];
+    const commOpen = _openComments.has(t.id);
+    const commLabel = comments.length
+      ? `💬 ${comments.length} koment.`
+      : '💬 Komentaras';
+
+    const commentsHtml = `
+      <button class="d-comment-toggle" onclick="toggleComments(${t.id})">${commLabel}${commOpen ? ' ▲' : ' ▼'}</button>
+      <div class="d-comments-area${commOpen ? ' open' : ''}">
+        ${comments.map(cm => `
+          <div class="d-comment-item">
+            <div class="d-comment-bubble">
+              ${_esc(cm.text)}
+              <div class="d-comment-date">${cm.date}</div>
+            </div>
+            <button class="d-comment-del" onclick="deleteComment(${t.id},${cm.id})" title="Ištrinti">×</button>
+          </div>`).join('')}
+        <div class="d-comment-input-row">
+          <input id="d-cin-${t.id}" type="text" placeholder="Rašyti komentarą…"
+            onkeydown="if(event.key==='Enter'){addComment(${t.id});event.preventDefault();}">
+          <button onclick="addComment(${t.id})">+ Pridėti</button>
+        </div>
+      </div>`;
+
     return `<div class="d-item${t.done?' done-item':''}${isOverdue?' overdue':''}">
       <div class="d-check${t.done?' checked':''}" onclick="toggleTask(${t.id})"></div>
       <div class="d-content">
@@ -631,6 +701,7 @@ function renderTasks() {
           <span class="d-date">Sukurta ${t.created}</span>
           ${t.done && t.doneAt ? `<span class="d-date">· Atlikta ${t.doneAt}</span>` : ''}
         </div>
+        ${commentsHtml}
       </div>
       <button class="d-del" onclick="deleteTask(${t.id})" title="Ištrinti">×</button>
     </div>`;

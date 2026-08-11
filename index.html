@@ -814,11 +814,12 @@ function renderTasks() {
       </div>`;
 
     const pickerOpen = _openStatusPicker === t.id;
+    const statusLabel = t.notionStatus || stDef.label; // Notion statusas jei yra
     const statusHtml = pickerOpen
       ? `<div class="d-status-picker">${STATUSES.map(s =>
           `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus(${t.id},'${s.id}')">${s.label}</button>`
         ).join('')}</div>`
-      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})">${stDef.label} ▾</button>`;
+      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})">${statusLabel} ▾</button>`;
 
     return `<div class="d-item${isDone?' done-item':''}${isOverdue?' overdue':''}">
       <div class="d-status-wrap">${statusHtml}</div>

@@ -32,9 +32,17 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
 .page-card { background: white; border-radius: 18px; padding: 1.75rem 1.5rem; text-decoration: none; color: inherit; cursor: pointer; border: none; font-family: inherit; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; gap: 0.5rem; border-top: 5px solid; width: 100%; text-align: left; }
 .page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
-.card-emoji { font-size: 36px; margin-bottom: 0.25rem; }
+.card-emoji-row { display:flex; align-items:center; gap:8px; margin-bottom:0.25rem; }
+.card-emoji { font-size: 36px; line-height:1; }
+.card-badge { background:#C0392B; color:white; font-size:12px; font-weight:800; border-radius:20px; padding:2px 8px; line-height:1.5; flex-shrink:0; }
 .card-title { font-size: 17px; font-weight: 800; color: #0A0A0A; }
 .card-desc { font-size: 13px; color: #6e6e73; line-height: 1.5; }
+.card-kpi { margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:5px; min-height:22px; }
+.kpi-chip { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#f0f0f0; color:#3a3a3a; }
+.kpi-chip.alert { background:#FDECEA; color:#C0392B; }
+.kpi-chip.good  { background:#EAF5E9; color:#2E7D32; }
+.kpi-chip.warn  { background:#FFF8E1; color:#8B6000; }
+.kpi-chip.spin  { color:#aaa; font-weight:400; font-style:italic; }
 .logout-btn { position: fixed; top: 1rem; right: 1rem; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: white; font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 10px; cursor: pointer; z-index: 999; display: none; }
 .logout-btn:hover { background: rgba(255,255,255,0.25); }
 
@@ -67,6 +75,15 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .d-date { font-size:11px; color:#8e8e93; }
 .d-del { background:none; border:none; color:#c0c0c0; font-size:18px; cursor:pointer; padding:0 0 0 6px; flex-shrink:0; line-height:1; }
 .d-del:hover { color:#C0392B; }
+.d-due-row { display:flex; align-items:center; gap:8px; margin-bottom:0.7rem; }
+.d-due-row label { font-size:12px; font-weight:700; color:#6e6e73; white-space:nowrap; }
+.d-due-row input[type=date] { font-family:inherit; font-size:13px; padding:5px 10px; border:1.5px solid #e0e0e0; border-radius:8px; outline:none; color:#1a1a1a; }
+.d-due-row input[type=date]:focus { border-color:#0A0A0A; }
+.d-due-tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+.d-due-tag.future { background:#EAF5E9; color:#2E7D32; border:1px solid #A5D6A7; }
+.d-due-tag.today  { background:#FFF8E1; color:#8B6000; border:1px solid #FFD54F; }
+.d-due-tag.late   { background:#FDECEA; color:#C0392B; border:1px solid #EF9A9A; }
+.d-item.overdue   { border-left:3px solid #C0392B; }
 
 /* ── KPI Dashboard (Direktorius) ── */
 .kpi-dash { width: 100%; max-width: 1100px; }
@@ -209,6 +226,10 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
   <div id="darbai-body">
     <div class="d-add-box">
       <textarea id="d-text-in" placeholder="Naujas darbas…"></textarea>
+      <div class="d-due-row">
+        <label>📅 Terminas:</label>
+        <input type="date" id="d-due-in">
+      </div>
       <div class="d-cats" id="d-cats"></div>
       <button class="d-add-btn" onclick="addTask()">+ Pridėti</button>
     </div>
@@ -274,16 +295,35 @@ function showDashboard(role) {
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('role-label').textContent = role.label;
 
+  const isDir = role.pages.includes('darbai');
+  const KPI_CARDS = new Set(['pardavimai', 'gamyba', 'zaliavos']);
+
   document.getElementById('cards').style.display = '';
-  document.getElementById('kpi-dash').style.display = 'none';
+  document.getElementById('kpi-dash').style.display = isDir ? '' : 'none';
+
   document.getElementById('cards').innerHTML = role.pages.map(pid => {
     const p = PAGES[pid];
+    const isDarbai = pid === 'darbai';
+    const hasKpi   = isDir && KPI_CARDS.has(pid);
+
+    const activeCnt = isDarbai ? loadTasks().filter(t => !t.done).length : 0;
+    const overdueCnt = isDarbai ? loadTasks().filter(t => !t.done && t.due && t.due < new Date().toISOString().slice(0,10)).length : 0;
+    const badgeHtml = isDarbai
+      ? `<span class="card-badge" id="darbai-badge" style="${overdueCnt>0?'background:#C0392B':'background:#5C7C28'}">${activeCnt}</span>`
+      : '';
+
     return `<button class="page-card" onclick="openFrame('${pid}')" style="border-top-color:${p.color}">
-      <div class="card-emoji">${p.emoji}</div>
+      <div class="card-emoji-row"><span class="card-emoji">${p.emoji}</span>${badgeHtml}</div>
       <div class="card-title">${p.title}</div>
       <div class="card-desc">${p.desc}</div>
+      ${hasKpi ? `<div class="card-kpi" id="card-kpi-${pid}"><span class="kpi-chip spin">kraunama…</span></div>` : ''}
     </button>`;
   }).join('');
+
+  if (isDir) {
+    loadAllKpi();
+    setInterval(loadAllKpi, 5 * 60 * 1000);
+  }
 }
 
 // ── CSV parser ──
@@ -347,8 +387,15 @@ async function loadKpiPardavimai() {
       tile('Šiandien kroviniai', siandien.length, today) +
       tile('Mėnesio m³', fmtN(menM3,1), moStr);
     document.getElementById('kpi-pardavimai-upd').textContent = 'Atnaujinta ' + nowStr();
+    const ck = document.getElementById('card-kpi-pardavimai');
+    if (ck) ck.innerHTML =
+      `<span class="kpi-chip ${active.length>0?'good':''}">${active.length} aktyvūs</span>` +
+      (veluoja.length ? `<span class="kpi-chip alert">⚠ ${veluoja.length} vėluoja</span>` : '') +
+      `<span class="kpi-chip">${fmtN(menM3,1)} m³ mėn.</span>`;
   } catch(e) {
     el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+    const ck = document.getElementById('card-kpi-pardavimai');
+    if (ck) ck.innerHTML = `<span class="kpi-chip alert">⚠ klaida</span>`;
   }
 }
 
@@ -383,8 +430,15 @@ async function loadKpiGamyba() {
       tile('Mėnesio m³', fmtN(monM3,1), moStr) +
       tile('Iš viso dienų', data.length, 'su duomenimis');
     document.getElementById('kpi-gamyba-upd').textContent = 'Atnaujinta ' + nowStr();
+    const ck = document.getElementById('card-kpi-gamyba');
+    if (ck) ck.innerHTML =
+      `<span class="kpi-chip">📅 ${lastRow[iDate]||'—'}</span>` +
+      `<span class="kpi-chip ${weekM3>0?'good':''}">${fmtN(weekM3,1)} m³ sav.</span>` +
+      `<span class="kpi-chip">${fmtN(monM3,1)} m³ mėn.</span>`;
   } catch(e) {
     el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+    const ck = document.getElementById('card-kpi-gamyba');
+    if (ck) ck.innerHTML = `<span class="kpi-chip alert">⚠ klaida</span>`;
   }
 }
 
@@ -419,8 +473,16 @@ async function loadKpiZaliavos() {
       tile('kg/h vidurkis', avgKgh ? fmtN(avgKgh) : '—', 'žaliavos produktui') +
       tile('Dienų', data.length, 'su duomenimis');
     document.getElementById('kpi-zaliavos-upd').textContent = 'Atnaujinta ' + nowStr();
+    const ck = document.getElementById('card-kpi-zaliavos');
+    const effCls = eff==null?'':eff>=75?'good':eff>=55?'warn':'alert';
+    if (ck) ck.innerHTML =
+      `<span class="kpi-chip ${effCls}">${eff!=null?eff+'% eff.':'—'}</span>` +
+      `<span class="kpi-chip">📅 ${last[iDate]||'—'}</span>` +
+      (avgKgh ? `<span class="kpi-chip">${fmtN(avgKgh)} kg/h</span>` : '');
   } catch(e) {
     el.innerHTML = `<div class="kpi-loading">⚠️ ${e.message}</div>`;
+    const ck = document.getElementById('card-kpi-zaliavos');
+    if (ck) ck.innerHTML = `<span class="kpi-chip alert">⚠ klaida</span>`;
   }
 }
 
@@ -494,20 +556,24 @@ function _pickCat(id) {
 function addTask() {
   const txt = document.getElementById('d-text-in').value.trim();
   if (!txt) return;
+  const due = document.getElementById('d-due-in').value || null;
   const tasks = loadTasks();
   tasks.unshift({
     id: Date.now(),
     text: txt,
     cat: _activeCat || 'kita',
+    due,
     created: new Date().toISOString().slice(0,10),
     done: false,
     doneAt: null
   });
   saveTasks(tasks);
   document.getElementById('d-text-in').value = '';
+  document.getElementById('d-due-in').value = '';
   _activeCat = null;
   document.querySelectorAll('.d-cat-btn').forEach(b => b.classList.remove('active'));
   renderTasks();
+  _refreshDarbaiBar();
 }
 
 function toggleTask(id) {
@@ -518,26 +584,50 @@ function toggleTask(id) {
   t.doneAt = t.done ? new Date().toISOString().slice(0,10) : null;
   saveTasks(tasks);
   renderTasks();
+  _refreshDarbaiBar();
 }
 
 function deleteTask(id) {
   saveTasks(loadTasks().filter(x => x.id !== id));
   renderTasks();
+  _refreshDarbaiBar();
+}
+
+function _refreshDarbaiBar() {
+  const badge = document.getElementById('darbai-badge');
+  if (!badge) return;
+  const today = new Date().toISOString().slice(0,10);
+  const active = loadTasks().filter(t => !t.done);
+  const overdue = active.filter(t => t.due && t.due < today);
+  badge.textContent = active.length;
+  badge.style.background = overdue.length > 0 ? '#C0392B' : '#5C7C28';
+  badge.style.display = active.length === 0 ? 'none' : '';
 }
 
 function renderTasks() {
   const tasks = loadTasks();
+  const today = new Date().toISOString().slice(0,10);
   const active = tasks.filter(t => !t.done);
   const done   = tasks.filter(t => t.done);
   const el = document.getElementById('d-list');
+
+  const dueBadge = t => {
+    if (!t.due) return '';
+    if (t.due < today)  return `<span class="d-due-tag late">⚠ ${t.due} — vėluoja!</span>`;
+    if (t.due === today) return `<span class="d-due-tag today">⏰ Šiandien</span>`;
+    return `<span class="d-due-tag future">📅 ${t.due}</span>`;
+  };
+
   const renderItem = t => {
     const c = CATEGORIES.find(x => x.id === t.cat) || CATEGORIES[5];
-    return `<div class="d-item${t.done?' done-item':''}">
+    const isOverdue = !t.done && t.due && t.due < today;
+    return `<div class="d-item${t.done?' done-item':''}${isOverdue?' overdue':''}">
       <div class="d-check${t.done?' checked':''}" onclick="toggleTask(${t.id})"></div>
       <div class="d-content">
         <div class="d-text">${_esc(t.text)}</div>
         <div class="d-meta">
           <span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30">${c.label}</span>
+          ${dueBadge(t)}
           <span class="d-date">Sukurta ${t.created}</span>
           ${t.done && t.doneAt ? `<span class="d-date">· Atlikta ${t.doneAt}</span>` : ''}
         </div>
@@ -545,6 +635,7 @@ function renderTasks() {
       <button class="d-del" onclick="deleteTask(${t.id})" title="Ištrinti">×</button>
     </div>`;
   };
+
   el.innerHTML =
     (active.length ? active.map(renderItem).join('') : '<div style="color:#aaa;text-align:center;padding:2rem 0;font-size:14px">Nėra aktyvių darbų 🎉</div>') +
     (done.length   ? `<div class="d-section-title">Atlikta (${done.length})</div>` + done.map(renderItem).join('') : '');

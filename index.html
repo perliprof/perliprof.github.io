@@ -557,21 +557,45 @@ function loadTasks() {
   catch { return []; }
 }
 function saveTasks(tasks) {
-  const ts = Date.now();
+  // Lokalus cache — Notion yra šaltinis, individualios operacijos sinchronizuoja
   localStorage.setItem(DARBAI_KEY, JSON.stringify(tasks));
-  localStorage.setItem(DARBAI_TS, String(ts));
-  _pushTasks(tasks, ts);
 }
 
-async function _pushTasks(tasks, ts) {
+// ── Notion API pagalbinės (per Apps Script proxy) ──
+async function _notionCreate(task) {
   const token = localStorage.getItem('po_secret') || '';
-  if (!token) return;
+  if (!token) return null;
+  try {
+    const res = await fetch(PO_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'notionCreateTask', token, text: task.text, status: task.status, due: task.due || null })
+    });
+    const js = await res.json();
+    if (js.ok) return { notionId: js.notionId, id: js.id };
+  } catch(_) {}
+  return null;
+}
+
+async function _notionUpdate(task) {
+  if (!task.notionId) return; // lokalus darbas, dar ne Notion'e
+  const token = localStorage.getItem('po_secret') || '';
   try {
     await fetch(PO_ENDPOINT, {
       method: 'POST',
-      body: JSON.stringify({ mode: 'saveTasks', token, tasks, lastSaved: ts || Date.now() })
+      body: JSON.stringify({ mode: 'notionUpdateTask', token, notionId: task.notionId, status: task.status })
     });
-  } catch(_) { /* silent — local jau išsaugota */ }
+  } catch(_) {}
+}
+
+async function _notionDelete(task) {
+  if (!task.notionId) return; // lokalus darbas — tiesiog ištriname lokaliai
+  const token = localStorage.getItem('po_secret') || '';
+  try {
+    await fetch(PO_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'notionDeleteTask', token, notionId: task.notionId })
+    });
+  } catch(_) {}
 }
 
 async function _syncFromServer() {
@@ -581,30 +605,23 @@ async function _syncFromServer() {
   if (bar) bar.textContent = '↻ sinchronizuojama…';
   try {
     const res = await Promise.race([
-      fetch(PO_ENDPOINT, { method: 'POST', body: JSON.stringify({ mode: 'getTasks', token }) }),
-      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 12000))
+      fetch(PO_ENDPOINT, { method: 'POST', body: JSON.stringify({ mode: 'notionGetTasks', token }) }),
+      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 15000))
     ]);
     const js = await res.json();
     if (js.ok && Array.isArray(js.tasks)) {
-      // Merge: sujungiam serverio ir lokalius darbus pagal ID — niekada neprarandame
+      // Notion tasks = pagrindiniai. Papildome lokaliais kurie dar neturi notionId
       const local = loadTasks();
       const byId = new Map();
-      local.forEach(t => byId.set(t.id, t));       // lokalūs pirmi
-      js.tasks.forEach(t => byId.set(t.id, t));    // serverio versija perrašo (serveris laimi konfliktams)
+      js.tasks.forEach(t => byId.set(t.id, t));                   // Notion (serveris laimi)
+      local.filter(t => !t.notionId).forEach(t => byId.set(t.id, t)); // lokalūs dar nesinchronizuoti
       const merged = Array.from(byId.values());
-
       localStorage.setItem(DARBAI_KEY, JSON.stringify(merged));
-      localStorage.setItem(DARBAI_TS, String(Date.now()));
       renderTasks();
       _refreshDarbaiBar();
-
-      // Jei lokaliai buvo darbų kurių serveris neturėjo — push'inam atgal
-      if (merged.length > js.tasks.length) {
-        _pushTasks(merged, Date.now());
-        if (bar) { bar.textContent = '✓ sinchronizuota'; setTimeout(() => { if (bar) bar.textContent = ''; }, 2000); }
-      } else {
-        if (bar) bar.textContent = '';
-      }
+      if (bar) bar.textContent = '';
+    } else if (js.error) {
+      if (bar) { bar.textContent = '⚠ ' + js.error; setTimeout(() => { if (bar) bar.textContent = ''; }, 5000); }
     }
   } catch(_) {
     if (bar) bar.textContent = '⚠ offline — rodomi lokalūs';
@@ -640,12 +657,11 @@ function _pickCat(id) {
   });
 }
 
-function addTask() {
+async function addTask() {
   const txt = document.getElementById('d-text-in').value.trim();
   if (!txt) return;
   const due = document.getElementById('d-due-in').value || null;
-  const tasks = loadTasks();
-  tasks.unshift({
+  const newTask = {
     id: Date.now(),
     text: txt,
     cat: _activeCat || 'kita',
@@ -653,8 +669,11 @@ function addTask() {
     status: 'nepradeta',
     created: new Date().toISOString().slice(0,10),
     done: false,
-    doneAt: null
-  });
+    doneAt: null,
+    notionId: null
+  };
+  const tasks = loadTasks();
+  tasks.unshift(newTask);
   saveTasks(tasks);
   document.getElementById('d-text-in').value = '';
   document.getElementById('d-due-in').value = '';
@@ -662,6 +681,20 @@ function addTask() {
   document.querySelectorAll('.d-cat-btn').forEach(b => b.classList.remove('active'));
   renderTasks();
   _refreshDarbaiBar();
+
+  // Sukurti Notion'e fone → atnaujinti lokalų įrašą su Notion ID
+  const result = await _notionCreate(newTask);
+  if (result) {
+    const updated = loadTasks();
+    const idx = updated.findIndex(t => t.id === newTask.id);
+    if (idx >= 0) {
+      updated[idx].notionId = result.notionId;
+      updated[idx].id = result.id; // Notion hash ID (stabilus)
+      saveTasks(updated);
+      renderTasks();
+      _refreshDarbaiBar();
+    }
+  }
 }
 
 function openStatusPicker(id) {
@@ -680,10 +713,14 @@ function setStatus(id, newStatus) {
   _openStatusPicker = null;
   renderTasks();
   _refreshDarbaiBar();
+  _notionUpdate(t); // sinchronizuoja Notion'e fone
 }
 
 function deleteTask(id) {
-  saveTasks(loadTasks().filter(x => x.id !== id));
+  const tasks = loadTasks();
+  const t = tasks.find(x => x.id === id);
+  if (t) _notionDelete(t); // archyvuoja Notion'e fone
+  saveTasks(tasks.filter(x => x.id !== id));
   renderTasks();
   _refreshDarbaiBar();
 }
@@ -747,7 +784,7 @@ function renderTasks() {
   };
 
   const renderItem = t => {
-    const c = CATEGORIES.find(x => x.id === t.cat) || CATEGORIES[5];
+    const c = CATEGORIES.find(x => x.id === t.cat); // null = Notion scope pavadinimas
     const st = _taskStatus(t);
     const stDef = STATUSES.find(s => s.id === st) || STATUSES[0];
     const isDone = st === 'baigta';
@@ -788,7 +825,9 @@ function renderTasks() {
       <div class="d-content">
         <div class="d-text">${_esc(t.text)}</div>
         <div class="d-meta">
-          <span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30">${c.label}</span>
+          ${c
+            ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30">${c.label}</span>`
+            : `<span class="d-badge" style="color:#5a5a5a;background:#eef0f2;border-color:#d0d4da">${_esc(t.cat||'kita')}</span>`}
           ${dueBadge(t)}
           <span class="d-date">Sukurta ${t.created}</span>
           ${isDone && t.doneAt ? `<span class="d-date">· Atlikta ${t.doneAt}</span>` : ''}

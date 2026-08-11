@@ -532,7 +532,8 @@ function closeFrame() {
 }
 
 // ── Darbai task management ──
-const DARBAI_KEY = 'hub_darbai_v1';
+const DARBAI_KEY  = 'hub_darbai_v1';
+const DARBAI_TS   = 'hub_darbai_ts';  // kada paskutinį kartą išsaugota lokaliai
 const STATUSES = [
   { id:'nepradeta', label:'Nepradėta' },
   { id:'vykdoma',   label:'Vykdoma'   },
@@ -556,17 +557,19 @@ function loadTasks() {
   catch { return []; }
 }
 function saveTasks(tasks) {
+  const ts = Date.now();
   localStorage.setItem(DARBAI_KEY, JSON.stringify(tasks));
-  _pushTasks(tasks);
+  localStorage.setItem(DARBAI_TS, String(ts));
+  _pushTasks(tasks, ts);
 }
 
-async function _pushTasks(tasks) {
+async function _pushTasks(tasks, ts) {
   const token = localStorage.getItem('po_secret') || '';
   if (!token) return;
   try {
     await fetch(PO_ENDPOINT, {
       method: 'POST',
-      body: JSON.stringify({ mode: 'saveTasks', token, tasks })
+      body: JSON.stringify({ mode: 'saveTasks', token, tasks, lastSaved: ts || Date.now() })
     });
   } catch(_) { /* silent — local jau išsaugota */ }
 }
@@ -583,17 +586,20 @@ async function _syncFromServer() {
     ]);
     const js = await res.json();
     if (js.ok && Array.isArray(js.tasks)) {
-      const local = loadTasks();
-      if (js.tasks.length === 0 && local.length > 0) {
-        // Serveris tuščias, bet lokaliai yra darbų — push'inam lokalius į serverį
-        _pushTasks(local);
-        if (bar) { bar.textContent = '✓ įkelta į serverį'; setTimeout(() => { if (bar) bar.textContent = ''; }, 3000); }
-      } else {
-        // Serveris turi duomenų — naudojam serverio versiją
+      const localTs  = parseInt(localStorage.getItem(DARBAI_TS) || '0');
+      const serverTs = js.lastSaved || 0;
+
+      if (serverTs >= localTs) {
+        // Serveris naujesnis arba lygus — naudojam serverio versiją
         localStorage.setItem(DARBAI_KEY, JSON.stringify(js.tasks));
+        localStorage.setItem(DARBAI_TS, String(serverTs));
         renderTasks();
         _refreshDarbaiBar();
         if (bar) bar.textContent = '';
+      } else {
+        // Lokalus naujesnis — push'inam į serverį
+        _pushTasks(loadTasks(), localTs);
+        if (bar) { bar.textContent = '✓ išsiųsta'; setTimeout(() => { if (bar) bar.textContent = ''; }, 2000); }
       }
     }
   } catch(_) {

@@ -153,6 +153,8 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .d-sort-bar { display:flex; gap:8px; margin-bottom:0.8rem; align-items:center; flex-wrap:wrap; }
 .d-sort-btn { font-family:inherit; font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px; border:2px solid #e0e0e0; background:white; cursor:pointer; color:#6e6e73; transition:all 0.12s; }
 .d-sort-btn.active { border-color:#0A0A0A; background:#0A0A0A; color:white; }
+@media (max-width:700px) { .col-hide { display:none; } }
+.d-table th, .d-table td { max-width:200px; }
 
 /* ── KPI Dashboard (Direktorius) ── */
 .kpi-dash { width: 100%; max-width: 1100px; }

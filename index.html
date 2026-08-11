@@ -582,10 +582,18 @@ async function _syncFromServer() {
     ]);
     const js = await res.json();
     if (js.ok && Array.isArray(js.tasks)) {
-      localStorage.setItem(DARBAI_KEY, JSON.stringify(js.tasks));
-      renderTasks();
-      _refreshDarbaiBar();
-      if (bar) bar.textContent = '';
+      const local = loadTasks();
+      if (js.tasks.length === 0 && local.length > 0) {
+        // Serveris tuščias, bet lokaliai yra darbų — push'inam lokalius į serverį
+        _pushTasks(local);
+        if (bar) { bar.textContent = '✓ įkelta į serverį'; setTimeout(() => { if (bar) bar.textContent = ''; }, 3000); }
+      } else {
+        // Serveris turi duomenų — naudojam serverio versiją
+        localStorage.setItem(DARBAI_KEY, JSON.stringify(js.tasks));
+        renderTasks();
+        _refreshDarbaiBar();
+        if (bar) bar.textContent = '';
+      }
     }
   } catch(_) {
     if (bar) bar.textContent = '⚠ offline — rodomi lokalūs';

@@ -130,6 +130,30 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .td-add-comment input:focus { border-color:#0A0A0A; }
 .td-add-comment button { font-family:inherit; font-size:13px; font-weight:700; padding:10px 16px; border:none; border-radius:10px; background:#0A0A0A; color:white; cursor:pointer; white-space:nowrap; }
 
+/* ── Darbų lentelė ── */
+.d-table-wrap { overflow-x:auto; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.08); background:white; }
+.d-table { width:100%; border-collapse:collapse; font-size:13px; }
+.d-table th { font-size:11px; font-weight:700; color:#6e6e73; text-transform:uppercase; letter-spacing:0.5px; padding:10px 12px; text-align:left; border-bottom:2px solid #e8e8e8; background:#f8f8f8; position:sticky; top:0; z-index:1; white-space:nowrap; }
+.d-table th.sortable-col { cursor:pointer; user-select:none; }
+.d-table th.sortable-col:hover { color:#1a1a1a; }
+.d-table th.sort-active { color:#1a1a1a; }
+.d-table td { padding:9px 12px; border-bottom:1px solid #f2f2f2; vertical-align:middle; }
+.d-table tbody tr:hover td { background:#fafafa; }
+.d-table tbody tr:last-child td { border-bottom:none; }
+.d-table tr.row-done td { opacity:0.4; }
+.d-table tr.row-done .dt-name { text-decoration:line-through; }
+.d-table tr.row-overdue td:first-child { border-left:3px solid #C0392B; padding-left:9px; }
+.dt-name { font-weight:600; cursor:pointer; color:#1a1a1a; max-width:260px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dt-name:hover { text-decoration:underline; color:#333; }
+.dt-scope { font-size:12px; font-weight:600; color:#444; white-space:nowrap; max-width:140px; overflow:hidden; text-overflow:ellipsis; }
+.dt-when { font-size:12px; color:#6e6e73; white-space:nowrap; }
+.dt-priority { font-size:12px; font-weight:700; white-space:nowrap; }
+.dt-priority.high { color:#C0392B; }
+.dt-priority.medium { color:#E67E22; }
+.d-sort-bar { display:flex; gap:8px; margin-bottom:0.8rem; align-items:center; flex-wrap:wrap; }
+.d-sort-btn { font-family:inherit; font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px; border:2px solid #e0e0e0; background:white; cursor:pointer; color:#6e6e73; transition:all 0.12s; }
+.d-sort-btn.active { border-color:#0A0A0A; background:#0A0A0A; color:white; }
+
 /* ── KPI Dashboard (Direktorius) ── */
 .kpi-dash { width: 100%; max-width: 1100px; }
 .kpi-sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 1.5rem; }
@@ -592,6 +616,8 @@ const CATEGORIES = [
   { id:'kita',       label:'📌 Kita',               color:'#3a3a3a', bg:'#F0F0F0' }
 ];
 let _activeCat = null;
+let _sortField = 'status';
+let _sortDir   = 1;
 
 function loadTasks() {
   try { return JSON.parse(localStorage.getItem(DARBAI_KEY) || '[]'); }
@@ -810,79 +836,94 @@ function _refreshDarbaiBar() {
   badge.style.display = active.length === 0 ? 'none' : '';
 }
 
+function toggleSort(field) {
+  if (_sortField === field) _sortDir *= -1;
+  else { _sortField = field; _sortDir = 1; }
+  renderTasks();
+}
+
 function renderTasks() {
   const tasks = loadTasks();
   const today = new Date().toISOString().slice(0,10);
-  const active = tasks.filter(t => _taskStatus(t) !== 'baigta');
-  const done   = tasks.filter(t => _taskStatus(t) === 'baigta');
   const el = document.getElementById('d-list');
+  if (!tasks.length) {
+    el.innerHTML = '<div style="color:#aaa;text-align:center;padding:3rem 0;font-size:14px">Nėra užduočių 🎉</div>';
+    return;
+  }
 
-  const dueBadge = t => {
-    if (!t.due) return '';
-    if (t.due < today)  return `<span class="d-due-tag late">⚠ ${t.due} — vėluoja!</span>`;
-    if (t.due === today) return `<span class="d-due-tag today">⏰ Šiandien</span>`;
-    return `<span class="d-due-tag future">📅 ${t.due}</span>`;
+  const statusOrder = { vykdoma:0, nepradeta:1, baigta:2 };
+
+  const sorted = [...tasks].sort((a, b) => {
+    const aSt = _taskStatus(a), bSt = _taskStatus(b);
+    const aDone = aSt === 'baigta', bDone = bSt === 'baigta';
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    if (_sortField === 'status') return ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;
+    if (_sortField === 'due') return ((a.due||'9999') < (b.due||'9999') ? -1 : 1) * _sortDir;
+    if (_sortField === 'scope') return (a.cat||'').localeCompare(b.cat||'') * _sortDir;
+    return 0;
+  });
+
+  const th = (label, field) => {
+    const active = _sortField === field;
+    const arrow = active ? (_sortDir === 1 ? ' ↓' : ' ↑') : '';
+    return `<th class="sortable-col${active?' sort-active':''}" onclick="toggleSort('${field}')">${label}${arrow}</th>`;
   };
 
-  const renderItem = t => {
-    const c = CATEGORIES.find(x => x.id === t.cat); // null = Notion scope pavadinimas
-    const st = _taskStatus(t);
+  const renderRow = t => {
+    const c   = CATEGORIES.find(x => x.id === t.cat);
+    const st  = _taskStatus(t);
     const stDef = STATUSES.find(s => s.id === st) || STATUSES[0];
-    const isDone = st === 'baigta';
+    const isDone    = st === 'baigta';
     const isOverdue = !isDone && t.due && t.due < today;
-    const comments = t.comments || [];
-    const commOpen = _openComments.has(t.id);
-    const commLabel = comments.length
-      ? `💬 ${comments.length} koment.`
-      : '💬 Komentaras';
-
-    const commentsHtml = `
-      <button class="d-comment-toggle" onclick="toggleComments(${t.id})">${commLabel}${commOpen ? ' ▲' : ' ▼'}</button>
-      <div class="d-comments-area${commOpen ? ' open' : ''}">
-        ${comments.map(cm => `
-          <div class="d-comment-item">
-            <div class="d-comment-bubble">
-              ${_esc(cm.text)}
-              <div class="d-comment-date">${cm.date}</div>
-            </div>
-            <button class="d-comment-del" onclick="deleteComment(${t.id},${cm.id})" title="Ištrinti">×</button>
-          </div>`).join('')}
-        <div class="d-comment-input-row">
-          <input id="d-cin-${t.id}" type="text" placeholder="Rašyti komentarą…"
-            onkeydown="if(event.key==='Enter'){addComment(${t.id});event.preventDefault();}">
-          <button onclick="addComment(${t.id})">+ Pridėti</button>
-        </div>
-      </div>`;
+    const statusLabel = t.notionStatus || stDef.label;
+    const commCount = (t.comments||[]).length;
+    const commBadge = commCount ? `<span style="font-size:11px;color:#8e8e93;margin-left:5px">💬${commCount}</span>` : '';
 
     const pickerOpen = _openStatusPicker === t.id;
-    const statusLabel = t.notionStatus || stDef.label; // Notion statusas jei yra
-    const statusHtml = pickerOpen
-      ? `<div class="d-status-picker">${STATUSES.map(s =>
-          `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus(${t.id},'${s.id}')">${s.label}</button>`
+    const statusCell = pickerOpen
+      ? `<div class="d-status-picker" style="flex-direction:row;flex-wrap:wrap;gap:3px">${STATUSES.map(s =>
+          `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus(${t.id},'${s.id}')" style="font-size:10px;padding:3px 8px">${s.label}</button>`
         ).join('')}</div>`
-      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})">${statusLabel} ▾</button>`;
+      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})" style="font-size:11px;padding:3px 10px">${statusLabel} ▾</button>`;
 
-    return `<div class="d-item${isDone?' done-item':''}${isOverdue?' overdue':''}">
-      <div class="d-status-wrap">${statusHtml}</div>
-      <div class="d-content">
-        <div class="d-text d-text-link" onclick="openTaskDetail(${t.id})">${_esc(t.text)}</div>
-        <div class="d-meta">
-          ${c
-            ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30">${c.label}</span>`
-            : `<span class="d-badge" style="color:#5a5a5a;background:#eef0f2;border-color:#d0d4da">${_esc(t.cat||'kita')}</span>`}
-          ${dueBadge(t)}
-          <span class="d-date">Sukurta ${t.created}</span>
-          ${isDone && t.doneAt ? `<span class="d-date">· Atlikta ${t.doneAt}</span>` : ''}
-        </div>
-        ${commentsHtml}
-      </div>
-      <button class="d-del" onclick="deleteTask(${t.id})" title="Ištrinti">×</button>
-    </div>`;
+    const scopeCell = c
+      ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30;font-size:11px">${c.label}</span>`
+      : `<span class="dt-scope">${_esc(t.cat||'—')}</span>`;
+
+    const dueCell = !t.due ? '<span style="color:#ccc">—</span>'
+      : t.due < today ? `<span class="d-due-tag late" style="font-size:11px">⚠ ${t.due}</span>`
+      : t.due === today ? `<span class="d-due-tag today" style="font-size:11px">⏰ Šiandien</span>`
+      : `<span style="font-size:12px;color:#444">${t.due}</span>`;
+
+    const prioLow = (t.priority||'').toLowerCase();
+    const prioClass = prioLow.includes('high') ? 'high' : prioLow.includes('med') ? 'medium' : '';
+    const prioCell = t.priority
+      ? `<span class="dt-priority ${prioClass}">${_esc(t.priority)}</span>`
+      : '<span style="color:#ccc">—</span>';
+
+    return `<tr class="${isDone?'row-done':''} ${isOverdue?'row-overdue':''}">
+      <td>${scopeCell}</td>
+      <td><span class="dt-name" onclick="openTaskDetail(${t.id})">${_esc(t.text)}${commBadge}</span></td>
+      <td class="dt-when">${_esc(t.when||'—')}</td>
+      <td>${statusCell}</td>
+      <td>${dueCell}</td>
+      <td>${prioCell}</td>
+      <td><button class="d-del" onclick="deleteTask(${t.id})" title="Ištrinti">×</button></td>
+    </tr>`;
   };
 
-  el.innerHTML =
-    (active.length ? active.map(renderItem).join('') : '<div style="color:#aaa;text-align:center;padding:2rem 0;font-size:14px">Nėra aktyvių darbų 🎉</div>') +
-    (done.length   ? `<div class="d-section-title">Atlikta (${done.length})</div>` + done.map(renderItem).join('') : '');
+  el.innerHTML = `<div class="d-table-wrap"><table class="d-table">
+    <thead><tr>
+      ${th('Scope','scope')}
+      <th>Užduotis</th>
+      <th>Kada</th>
+      ${th('Statusas','status')}
+      ${th('Terminas','due')}
+      <th>Prioritetas</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${sorted.map(renderRow).join('')}</tbody>
+  </table></div>`;
 }
 
 // ── Task detail modal ──

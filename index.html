@@ -586,20 +586,24 @@ async function _syncFromServer() {
     ]);
     const js = await res.json();
     if (js.ok && Array.isArray(js.tasks)) {
-      const localTs  = parseInt(localStorage.getItem(DARBAI_TS) || '0');
-      const serverTs = js.lastSaved || 0;
+      // Merge: sujungiam serverio ir lokalius darbus pagal ID — niekada neprarandame
+      const local = loadTasks();
+      const byId = new Map();
+      local.forEach(t => byId.set(t.id, t));       // lokalūs pirmi
+      js.tasks.forEach(t => byId.set(t.id, t));    // serverio versija perrašo (serveris laimi konfliktams)
+      const merged = Array.from(byId.values());
 
-      if (serverTs >= localTs) {
-        // Serveris naujesnis arba lygus — naudojam serverio versiją
-        localStorage.setItem(DARBAI_KEY, JSON.stringify(js.tasks));
-        localStorage.setItem(DARBAI_TS, String(serverTs));
-        renderTasks();
-        _refreshDarbaiBar();
-        if (bar) bar.textContent = '';
+      localStorage.setItem(DARBAI_KEY, JSON.stringify(merged));
+      localStorage.setItem(DARBAI_TS, String(Date.now()));
+      renderTasks();
+      _refreshDarbaiBar();
+
+      // Jei lokaliai buvo darbų kurių serveris neturėjo — push'inam atgal
+      if (merged.length > js.tasks.length) {
+        _pushTasks(merged, Date.now());
+        if (bar) { bar.textContent = '✓ sinchronizuota'; setTimeout(() => { if (bar) bar.textContent = ''; }, 2000); }
       } else {
-        // Lokalus naujesnis — push'inam į serverį
-        _pushTasks(loadTasks(), localTs);
-        if (bar) { bar.textContent = '✓ išsiųsta'; setTimeout(() => { if (bar) bar.textContent = ''; }, 2000); }
+        if (bar) bar.textContent = '';
       }
     }
   } catch(_) {

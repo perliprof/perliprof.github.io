@@ -244,6 +244,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
   <div id="darbai-bar">
     <button onclick="closeDarbai()">← Hub</button>
     <span>📋 Darbai</span>
+    <span id="darbai-sync-status" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);margin-left:auto"></span>
   </div>
   <div id="darbai-body">
     <div class="d-add-box">
@@ -555,12 +556,48 @@ function loadTasks() {
 }
 function saveTasks(tasks) {
   localStorage.setItem(DARBAI_KEY, JSON.stringify(tasks));
+  _pushTasks(tasks);
+}
+
+async function _pushTasks(tasks) {
+  const token = localStorage.getItem('po_secret') || '';
+  if (!token) return;
+  try {
+    await fetch(PO_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'saveTasks', token, tasks })
+    });
+  } catch(_) { /* silent — local jau išsaugota */ }
+}
+
+async function _syncFromServer() {
+  const token = localStorage.getItem('po_secret') || '';
+  if (!token) return;
+  const bar = document.getElementById('darbai-sync-status');
+  if (bar) bar.textContent = '↻ sinchronizuojama…';
+  try {
+    const res = await Promise.race([
+      fetch(PO_ENDPOINT, { method: 'POST', body: JSON.stringify({ mode: 'getTasks', token }) }),
+      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 12000))
+    ]);
+    const js = await res.json();
+    if (js.ok && Array.isArray(js.tasks)) {
+      localStorage.setItem(DARBAI_KEY, JSON.stringify(js.tasks));
+      renderTasks();
+      _refreshDarbaiBar();
+      if (bar) bar.textContent = '';
+    }
+  } catch(_) {
+    if (bar) bar.textContent = '⚠ offline — rodomi lokalūs';
+    setTimeout(() => { if (bar) bar.textContent = ''; }, 4000);
+  }
 }
 
 function openDarbai() {
   document.getElementById('darbai-overlay').classList.add('show');
   initCatButtons();
   renderTasks();
+  _syncFromServer();
 }
 function closeDarbai() {
   document.getElementById('darbai-overlay').classList.remove('show');

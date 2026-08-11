@@ -540,6 +540,7 @@ const STATUSES = [
 ];
 function _taskStatus(t) { return t.status || (t.done ? 'baigta' : 'nepradeta'); }
 let _openStatusPicker = null;
+let _syncInterval = null;
 const CATEGORIES = [
   { id:'atsargines', label:'🔩 Atsarginės dalys', color:'#7C4A1E', bg:'#FFF3E0' },
   { id:'klientai',   label:'🤝 Klientai',          color:'#1E5C7C', bg:'#E3F2FD' },
@@ -606,9 +607,11 @@ function openDarbai() {
   initCatButtons();
   renderTasks();
   _syncFromServer();
+  _syncInterval = setInterval(_syncFromServer, 30000);
 }
 function closeDarbai() {
   document.getElementById('darbai-overlay').classList.remove('show');
+  if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
 }
 
 function initCatButtons() {
@@ -794,6 +797,13 @@ function renderTasks() {
 function _esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Grįžus į skirtuką — iškart sinchronizuoja
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && document.getElementById('darbai-overlay').classList.contains('show')) {
+    _syncFromServer();
+  }
+});
 
 // Enter key adds task
 document.addEventListener('keydown', e => {

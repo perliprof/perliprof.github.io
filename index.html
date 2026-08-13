@@ -293,6 +293,8 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
   <div id="darbai-bar">
     <button onclick="closeDarbai()">← Hub</button>
     <span>📋 Darbai</span>
+    <button onclick="exportTasks()" style="margin-left:auto;font-size:12px;padding:5px 12px">📤 Eksportuoti</button>
+    <button onclick="showImport()" style="font-size:12px;padding:5px 12px">📥 Importuoti</button>
   </div>
   <div id="darbai-body">
     <div class="d-add-box">
@@ -305,6 +307,18 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
       <button class="d-add-btn" onclick="addTask()">+ Pridėti</button>
     </div>
     <div id="d-list"></div>
+  </div>
+</div>
+
+<!-- Export/Import modal -->
+<div id="exim-modal" onclick="if(event.target===this)closeExim()" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;padding:1.5rem;width:90%;max-width:500px;max-height:80vh;display:flex;flex-direction:column;gap:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong id="exim-title" style="font-size:17px"></strong>
+      <button onclick="closeExim()" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer">×</button>
+    </div>
+    <textarea id="exim-text" style="flex:1;min-height:200px;font-family:monospace;font-size:12px;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;resize:none;outline:none;word-break:break-all"></textarea>
+    <div id="exim-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
   </div>
 </div>
 
@@ -903,6 +917,51 @@ function deleteCommentFromDetail(taskId, commentId) {
   saveTasks(tasks);
   renderTaskDetail();
   renderTasks();
+}
+
+// ── Eksportas / Importas ──
+function exportTasks() {
+  const data = localStorage.getItem(DARBAI_KEY) || '[]';
+  document.getElementById('exim-title').textContent = '📤 Eksportuoti duomenis';
+  document.getElementById('exim-text').value = data;
+  document.getElementById('exim-text').readOnly = true;
+  document.getElementById('exim-actions').innerHTML = `
+    <button onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('exim-text').value).then(()=>{this.textContent='✓ Nukopijuota!';setTimeout(()=>this.textContent='Kopijuoti',2000)})" style="font-family:inherit;font-size:14px;font-weight:700;padding:10px 20px;border:none;border-radius:10px;background:#0A0A0A;color:white;cursor:pointer">Kopijuoti</button>
+    <button onclick="closeExim()" style="font-family:inherit;font-size:14px;font-weight:600;padding:10px 20px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;cursor:pointer">Uždaryti</button>`;
+  const m = document.getElementById('exim-modal');
+  m.style.display = 'flex';
+  setTimeout(() => document.getElementById('exim-text').select(), 100);
+}
+
+function showImport() {
+  document.getElementById('exim-title').textContent = '📥 Importuoti duomenis';
+  document.getElementById('exim-text').value = '';
+  document.getElementById('exim-text').readOnly = false;
+  document.getElementById('exim-text').placeholder = 'Įklijuokite eksportuotus duomenis čia…';
+  document.getElementById('exim-actions').innerHTML = `
+    <button onclick="doImport()" style="font-family:inherit;font-size:14px;font-weight:700;padding:10px 20px;border:none;border-radius:10px;background:#5C7C28;color:white;cursor:pointer">Importuoti</button>
+    <button onclick="closeExim()" style="font-family:inherit;font-size:14px;font-weight:600;padding:10px 20px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;cursor:pointer">Atšaukti</button>`;
+  document.getElementById('exim-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('exim-text').focus(), 100);
+}
+
+function doImport() {
+  try {
+    const txt = document.getElementById('exim-text').value.trim();
+    const parsed = JSON.parse(txt);
+    if (!Array.isArray(parsed)) throw new Error('Ne masyvas');
+    localStorage.setItem(DARBAI_KEY, JSON.stringify(parsed));
+    closeExim();
+    renderTasks();
+    _refreshDarbaiBar();
+    alert('✅ Importuota ' + parsed.length + ' užduočių!');
+  } catch(e) {
+    alert('❌ Klaida: neteisingi duomenys. Patikrinkite ar teisingai nukopijuota.');
+  }
+}
+
+function closeExim() {
+  document.getElementById('exim-modal').style.display = 'none';
 }
 
 function _esc(s) {

@@ -614,7 +614,7 @@ function closeFrame() {
 
 // ── Darbai task management ──
 const DARBAI_KEY  = 'hub_darbai_v1';
-const DARBAI_TS   = 'hub_darbai_ts';  // kada paskutinį kartą išsaugota lokaliai
+const DARBAI_CATS_KEY = 'hub_darbai_cats';
 const STATUSES = [
   { id:'nepradeta', label:'Nepradėta' },
   { id:'vykdoma',   label:'Vykdoma'   },
@@ -622,14 +622,41 @@ const STATUSES = [
 ];
 function _taskStatus(t) { return t.status || (t.done ? 'baigta' : 'nepradeta'); }
 let _openStatusPicker = null;
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id:'atsargines', label:'🔩 Atsarginės dalys', color:'#7C4A1E', bg:'#FFF3E0' },
   { id:'klientai',   label:'🤝 Klientai',          color:'#1E5C7C', bg:'#E3F2FD' },
   { id:'tiekejai',   label:'📦 Tiekėjai',           color:'#4A1E7C', bg:'#F3E0FF' },
   { id:'iranga',     label:'⚙️ Įranga',             color:'#1E7C4A', bg:'#E0FFE3' },
   { id:'projektas',  label:'🚀 Projektas',           color:'#7C6B1E', bg:'#FFF9E0' },
+  { id:'kelione',    label:'✈️ Kelionė',             color:'#1E4A7C', bg:'#E3F0FF' },
   { id:'kita',       label:'📌 Kita',               color:'#3a3a3a', bg:'#F0F0F0' }
 ];
+function loadCategories() {
+  try {
+    const custom = JSON.parse(localStorage.getItem(DARBAI_CATS_KEY) || '[]');
+    const all = [...DEFAULT_CATEGORIES];
+    custom.forEach(c => { if (!all.find(x => x.id === c.id)) all.splice(all.length-1, 0, c); });
+    return all;
+  } catch { return DEFAULT_CATEGORIES; }
+}
+function addCategory(name) {
+  if (!name) return;
+  const id = name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  if (!id) return;
+  try {
+    const custom = JSON.parse(localStorage.getItem(DARBAI_CATS_KEY) || '[]');
+    if (!custom.find(c => c.id === id) && !DEFAULT_CATEGORIES.find(c => c.id === id)) {
+      const colors = ['#7C1E4A','#1E7C6B','#4A7C1E','#7C4A1E','#1E1E7C'];
+      const bgs    = ['#FFE0F3','#E0FFF9','#EAFFE0','#FFF3E0','#E0E0FF'];
+      const idx = custom.length % colors.length;
+      custom.push({ id, label: '🏷 ' + name, color: colors[idx], bg: bgs[idx] });
+      localStorage.setItem(DARBAI_CATS_KEY, JSON.stringify(custom));
+    }
+  } catch(_) {}
+  document.getElementById('d-cats').dataset.init = '';
+  initCatButtons();
+  _pickCat(id);
+}
 let _activeCat = null;
 let _sortField = 'status';
 let _sortDir   = 1;
@@ -710,9 +737,15 @@ function initCatButtons() {
   const el = document.getElementById('d-cats');
   if (el.dataset.init) return;
   el.dataset.init = '1';
-  el.innerHTML = CATEGORIES.map(c =>
+  const cats = loadCategories();
+  el.innerHTML = cats.map(c =>
     `<button class="d-cat-btn${_activeCat===c.id?' active':''}" data-cat="${c.id}" onclick="_pickCat('${c.id}')">${c.label}</button>`
-  ).join('');
+  ).join('') +
+  `<button class="d-cat-btn" style="border-style:dashed;color:#aaa" onclick="_promptNewCat()">+ Nauja</button>`;
+}
+function _promptNewCat() {
+  const name = prompt('Naujos kategorijos pavadinimas:');
+  if (name && name.trim()) addCategory(name.trim());
 }
 
 function _pickCat(id) {
@@ -756,7 +789,7 @@ function openStatusPicker(id) {
 
 function setStatus(id, newStatus) {
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === id);
+  const t = tasks.find(x => String(x.id) === String(id));
   if (!t) return;
   t.status = newStatus;
   t.done   = newStatus === 'baigta';
@@ -770,7 +803,7 @@ function setStatus(id, newStatus) {
 
 function deleteTask(id) {
   const tasks = loadTasks();
-  saveTasks(tasks.filter(x => x.id !== id));
+  saveTasks(tasks.filter(x => String(x.id) !== String(id)));
   renderTasks();
   _refreshDarbaiBar();
   _serverDelete(id);
@@ -791,7 +824,7 @@ function addComment(taskId) {
   const txt = inp.value.trim();
   if (!txt) return;
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === taskId);
+  const t = tasks.find(x => String(x.id) === String(taskId));
   if (!t) return;
   if (!t.comments) t.comments = [];
   t.comments.push({ id: Date.now(), text: txt, date: new Date().toISOString().slice(0,10) });
@@ -803,9 +836,9 @@ function addComment(taskId) {
 
 function deleteComment(taskId, commentId) {
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === taskId);
+  const t = tasks.find(x => String(x.id) === String(taskId));
   if (!t || !t.comments) return;
-  t.comments = t.comments.filter(c => c.id !== commentId);
+  t.comments = t.comments.filter(c => String(c.id) !== String(commentId));
   saveTasks(tasks);
   renderTasks();
   _serverWrite(t);
@@ -855,8 +888,9 @@ function renderTasks() {
     return `<th class="sortable-col${active?' sort-active':''}" onclick="toggleSort('${field}')">${label}${arrow}</th>`;
   };
 
+  const CATS = loadCategories();
   const renderRow = t => {
-    const c   = CATEGORIES.find(x => x.id === t.cat);
+    const c   = CATS.find(x => x.id === t.cat);
     const st  = _taskStatus(t);
     const stDef = STATUSES.find(s => s.id === st) || STATUSES[0];
     const isDone    = st === 'baigta';
@@ -864,12 +898,12 @@ function renderTasks() {
     const commCount = (t.comments||[]).length;
     const commBadge = commCount ? `<span style="font-size:11px;color:#8e8e93;margin-left:5px">💬${commCount}</span>` : '';
 
-    const pickerOpen = _openStatusPicker === t.id;
+    const pickerOpen = String(_openStatusPicker) === String(t.id);
     const statusCell = pickerOpen
       ? `<div class="d-status-picker" style="flex-direction:row;flex-wrap:wrap;gap:3px">${STATUSES.map(s =>
-          `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus(${t.id},'${s.id}')" style="font-size:10px;padding:3px 8px">${s.label}</button>`
+          `<button class="d-status-opt ${s.id}${st===s.id?' active':''}" onclick="setStatus('${t.id}','${s.id}')" style="font-size:10px;padding:3px 8px">${s.label}</button>`
         ).join('')}</div>`
-      : `<button class="d-status-btn ${st}" onclick="openStatusPicker(${t.id})" style="font-size:11px;padding:3px 10px">${stDef.label} ▾</button>`;
+      : `<button class="d-status-btn ${st}" onclick="openStatusPicker('${t.id}')" style="font-size:11px;padding:3px 10px">${stDef.label} ▾</button>`;
 
     const catCell = c
       ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30;font-size:11px">${c.label}</span>`
@@ -882,10 +916,11 @@ function renderTasks() {
 
     return `<tr class="${isDone?'row-done':''} ${isOverdue?'row-overdue':''}">
       <td>${catCell}</td>
-      <td><span class="dt-name" onclick="openTaskDetail(${t.id})">${_esc(t.text)}${commBadge}</span></td>
+      <td><span class="dt-name" onclick="openTaskDetail('${t.id}')">${_esc(t.text)}${commBadge}</span>
+          ${t.created?`<span style="font-size:10px;color:#aaa">${t.created}</span>`:''}</td>
       <td>${statusCell}</td>
       <td>${dueCell}</td>
-      <td><button class="d-del" onclick="deleteTask(${t.id})" title="Ištrinti">×</button></td>
+      <td><button class="d-del" onclick="deleteTask('${t.id}')" title="Ištrinti">×</button></td>
     </tr>`;
   };
 
@@ -918,12 +953,12 @@ function closeTaskDetail() {
 function renderTaskDetail() {
   if (!_detailTaskId) return;
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === _detailTaskId);
+  const t = tasks.find(x => String(x.id) === String(_detailTaskId));
   if (!t) return;
   const today = new Date().toISOString().slice(0,10);
   const st = _taskStatus(t);
   const stDef = STATUSES.find(s => s.id === st) || STATUSES[0];
-  const c = CATEGORIES.find(x => x.id === t.cat);
+  const c = loadCategories().find(x => x.id === t.cat);
 
   document.getElementById('td-title').textContent = t.text;
 
@@ -936,7 +971,7 @@ function renderTaskDetail() {
     else if (t.due === today) meta += `<span class="d-due-tag today">⏰ Šiandien</span>`;
     else meta += `<span class="d-due-tag future">📅 ${t.due}</span>`;
   }
-  meta += `<span style="font-size:11px;color:#aaa">Sukurta ${t.created}</span>`;
+  if (t.created) meta += `<span style="font-size:11px;color:#aaa">📅 Įvesta: ${t.created}</span>`;
   document.getElementById('td-meta').innerHTML = meta;
 
   // Komentarai
@@ -946,9 +981,9 @@ function renderTaskDetail() {
         <div class="td-comment-item">
           <div class="td-comment-bubble">
             ${_esc(cm.text)}
-            <div class="td-comment-date">${cm.date}</div>
+            <div class="td-comment-date">${cm.date||''}</div>
           </div>
-          <button class="td-comment-del" onclick="deleteCommentFromDetail(${t.id},${cm.id})" title="Ištrinti">×</button>
+          <button class="td-comment-del" onclick="deleteCommentFromDetail('${t.id}','${cm.id}')" title="Ištrinti">×</button>
         </div>`).join('')
     : '<div style="color:#aaa;font-size:13px;padding:4px 0">Komentarų dar nėra</div>';
   document.getElementById('td-comments').innerHTML = commHtml;
@@ -961,7 +996,7 @@ function addCommentFromDetail() {
   const txt = inp.value.trim();
   if (!txt) return;
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === _detailTaskId);
+  const t = tasks.find(x => String(x.id) === String(_detailTaskId));
   if (!t) return;
   if (!t.comments) t.comments = [];
   t.comments.push({ id: Date.now(), text: txt, date: new Date().toISOString().slice(0,10) });
@@ -973,9 +1008,9 @@ function addCommentFromDetail() {
 
 function deleteCommentFromDetail(taskId, commentId) {
   const tasks = loadTasks();
-  const t = tasks.find(x => x.id === taskId);
+  const t = tasks.find(x => String(x.id) === String(taskId));
   if (!t || !t.comments) return;
-  t.comments = t.comments.filter(c => c.id !== commentId);
+  t.comments = t.comments.filter(c => String(c.id) !== String(commentId));
   saveTasks(tasks);
   renderTaskDetail();
   renderTasks();

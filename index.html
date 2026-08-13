@@ -876,7 +876,11 @@ function renderTasks() {
     const aSt = _taskStatus(a), bSt = _taskStatus(b);
     const aDone = aSt === 'baigta', bDone = bSt === 'baigta';
     if (aDone !== bDone) return aDone ? 1 : -1;
-    if (_sortField === 'status') return ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;
+    if (_sortField === 'status') {
+      const diff = ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;
+      if (diff !== 0) return diff;
+      return (b.created||'') > (a.created||'') ? 1 : -1; // naujausias viršuje
+    }
     if (_sortField === 'due') return ((a.due||'9999') < (b.due||'9999') ? -1 : 1) * _sortDir;
     if (_sortField === 'scope') return (a.cat||'').localeCompare(b.cat||'') * _sortDir;
     return 0;

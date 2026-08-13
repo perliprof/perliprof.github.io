@@ -659,10 +659,19 @@ async function _syncFromServer() {
     ]);
     const js = await res.json();
     if (js.ok && Array.isArray(js.tasks)) {
-      saveTasks(js.tasks);
-      renderTasks();
-      _refreshDarbaiBar();
-      if (bar) bar.textContent = '';
+      const serverTasks = js.tasks;
+      const localTasks  = loadTasks();
+      if (serverTasks.length === 0 && localTasks.length > 0) {
+        // Sheet tuščias, bet lokaliai yra darbų → įkeliame į Sheet
+        for (const t of localTasks) await _serverWrite(t);
+        if (bar) bar.textContent = '';
+      } else {
+        // Sheet turi darbų → jis yra šaltinis
+        saveTasks(serverTasks);
+        renderTasks();
+        _refreshDarbaiBar();
+        if (bar) bar.textContent = '';
+      }
     } else {
       if (bar) { bar.textContent = '⚠ ' + (js.error||'klaida'); setTimeout(()=>{ if(bar) bar.textContent=''; },4000); }
     }

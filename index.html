@@ -293,7 +293,8 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
   <div id="darbai-bar">
     <button onclick="closeDarbai()">← Hub</button>
     <span>📋 Darbai</span>
-    <button onclick="exportTasks()" style="margin-left:auto;font-size:12px;padding:5px 12px">📤 Eksportuoti</button>
+    <span id="darbai-sync-status" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.55);margin-left:auto"></span>
+    <button onclick="exportTasks()" style="font-size:12px;padding:5px 12px">📤 Eksportuoti</button>
     <button onclick="showImport()" style="font-size:12px;padding:5px 12px">📥 Importuoti</button>
   </div>
   <div id="darbai-body">
@@ -641,13 +642,59 @@ function saveTasks(tasks) {
   localStorage.setItem(DARBAI_KEY, JSON.stringify(tasks));
 }
 
+// ── Sheet sinchronizacija ──
+let _syncInterval = null;
+let _syncBusy = false;
+
+async function _syncFromServer() {
+  if (_syncBusy) return;
+  _syncBusy = true;
+  const bar = document.getElementById('darbai-sync-status');
+  if (bar) bar.textContent = '↻ sinchronizuojama…';
+  const token = localStorage.getItem('po_secret') || '';
+  try {
+    const res = await Promise.race([
+      fetch(PO_ENDPOINT, { method:'POST', body: JSON.stringify({ mode:'darbai_read', token }) }),
+      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 12000))
+    ]);
+    const js = await res.json();
+    if (js.ok && Array.isArray(js.tasks)) {
+      saveTasks(js.tasks);
+      renderTasks();
+      _refreshDarbaiBar();
+      if (bar) bar.textContent = '';
+    } else {
+      if (bar) { bar.textContent = '⚠ ' + (js.error||'klaida'); setTimeout(()=>{ if(bar) bar.textContent=''; },4000); }
+    }
+  } catch(_) {
+    if (bar) { bar.textContent = '⚠ offline'; setTimeout(()=>{ if(bar) bar.textContent=''; },4000); }
+  } finally { _syncBusy = false; }
+}
+
+async function _serverWrite(task) {
+  const token = localStorage.getItem('po_secret') || '';
+  try {
+    await fetch(PO_ENDPOINT, { method:'POST', body: JSON.stringify({ mode:'darbai_write', token, task }) });
+  } catch(_) {}
+}
+
+async function _serverDelete(id) {
+  const token = localStorage.getItem('po_secret') || '';
+  try {
+    await fetch(PO_ENDPOINT, { method:'POST', body: JSON.stringify({ mode:'darbai_delete', token, id: String(id) }) });
+  } catch(_) {}
+}
+
 function openDarbai() {
   document.getElementById('darbai-overlay').classList.add('show');
   initCatButtons();
   renderTasks();
+  _syncFromServer();
+  _syncInterval = setInterval(_syncFromServer, 60000);
 }
 function closeDarbai() {
   document.getElementById('darbai-overlay').classList.remove('show');
+  if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
 }
 
 function initCatButtons() {
@@ -690,6 +737,7 @@ function addTask() {
   document.querySelectorAll('.d-cat-btn').forEach(b => b.classList.remove('active'));
   renderTasks();
   _refreshDarbaiBar();
+  _serverWrite(newTask);
 }
 
 function openStatusPicker(id) {
@@ -708,6 +756,7 @@ function setStatus(id, newStatus) {
   _openStatusPicker = null;
   renderTasks();
   _refreshDarbaiBar();
+  _serverWrite(t);
 }
 
 function deleteTask(id) {
@@ -715,6 +764,7 @@ function deleteTask(id) {
   saveTasks(tasks.filter(x => x.id !== id));
   renderTasks();
   _refreshDarbaiBar();
+  _serverDelete(id);
 }
 
 // ── Komentarai ──
@@ -739,6 +789,7 @@ function addComment(taskId) {
   saveTasks(tasks);
   _openComments.add(taskId);
   renderTasks();
+  _serverWrite(t);
 }
 
 function deleteComment(taskId, commentId) {
@@ -748,6 +799,7 @@ function deleteComment(taskId, commentId) {
   t.comments = t.comments.filter(c => c.id !== commentId);
   saveTasks(tasks);
   renderTasks();
+  _serverWrite(t);
 }
 
 function _refreshDarbaiBar() {
@@ -907,6 +959,7 @@ function addCommentFromDetail() {
   saveTasks(tasks);
   renderTaskDetail();
   renderTasks();
+  _serverWrite(t);
 }
 
 function deleteCommentFromDetail(taskId, commentId) {
@@ -917,6 +970,7 @@ function deleteCommentFromDetail(taskId, commentId) {
   saveTasks(tasks);
   renderTaskDetail();
   renderTasks();
+  _serverWrite(t);
 }
 
 // ── Eksportas / Importas ──

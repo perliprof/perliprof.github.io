@@ -658,8 +658,8 @@ function addCategory(name) {
   _pickCat(id);
 }
 let _activeCat = null;
-let _sortField = 'created';
-let _sortDir   = -1;
+let _sortField = 'default';
+let _sortDir   = 1;
 
 function loadTasks() {
   try { return JSON.parse(localStorage.getItem(DARBAI_KEY) || '[]'); }
@@ -870,16 +870,28 @@ function renderTasks() {
     return;
   }
 
-  const statusOrder = { vykdoma:0, nepradeta:1, baigta:2 };
+  const statusOrder = { nepradeta:0, vykdoma:1, baigta:2 };
+
+  function _lastActivity(t) {
+    const comments = t.comments || [];
+    const lastComment = comments.reduce((max, c) => (c.date||'') > max ? (c.date||'') : max, '');
+    return lastComment || t.created || '';
+  }
 
   const sorted = [...tasks].sort((a, b) => {
     const aSt = _taskStatus(a), bSt = _taskStatus(b);
     const aDone = aSt === 'baigta', bDone = bSt === 'baigta';
     if (aDone !== bDone) return aDone ? 1 : -1;
+    if (_sortField === 'default') {
+      const statusDiff = (statusOrder[aSt]??1) - (statusOrder[bSt]??1);
+      if (statusDiff !== 0) return statusDiff;
+      const aAct = _lastActivity(a), bAct = _lastActivity(b);
+      return bAct > aAct ? 1 : bAct < aAct ? -1 : 0;
+    }
     if (_sortField === 'status') {
       const diff = ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;
       if (diff !== 0) return diff;
-      return (b.created||'') > (a.created||'') ? 1 : -1;
+      return _lastActivity(b) > _lastActivity(a) ? 1 : -1;
     }
     if (_sortField === 'due') return ((a.due||'9999') < (b.due||'9999') ? -1 : 1) * _sortDir;
     if (_sortField === 'scope') return (a.cat||'').localeCompare(b.cat||'') * _sortDir;

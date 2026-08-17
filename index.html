@@ -658,8 +658,8 @@ function addCategory(name) {
   _pickCat(id);
 }
 let _activeCat = null;
-let _sortField = 'status';
-let _sortDir   = 1;
+let _sortField = 'created';
+let _sortDir   = -1;
 
 function loadTasks() {
   try { return JSON.parse(localStorage.getItem(DARBAI_KEY) || '[]'); }
@@ -879,10 +879,11 @@ function renderTasks() {
     if (_sortField === 'status') {
       const diff = ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;
       if (diff !== 0) return diff;
-      return (b.created||'') > (a.created||'') ? 1 : -1; // naujausias viršuje
+      return (b.created||'') > (a.created||'') ? 1 : -1;
     }
     if (_sortField === 'due') return ((a.due||'9999') < (b.due||'9999') ? -1 : 1) * _sortDir;
     if (_sortField === 'scope') return (a.cat||'').localeCompare(b.cat||'') * _sortDir;
+    if (_sortField === 'created') return ((b.created||'') > (a.created||'') ? 1 : -1) * _sortDir;
     return 0;
   });
 
@@ -931,7 +932,7 @@ function renderTasks() {
   el.innerHTML = `<div class="d-table-wrap"><table class="d-table">
     <thead><tr>
       ${th('Kategorija','scope')}
-      <th>Užduotis</th>
+      ${th('Užduotis','created')}
       ${th('Statusas','status')}
       ${th('Terminas','due')}
       <th></th>

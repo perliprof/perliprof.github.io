@@ -872,10 +872,13 @@ function renderTasks() {
 
   const statusOrder = { nepradeta:0, vykdoma:1, baigta:2 };
 
-  function _lastActivity(t) {
+  function _lastComment(t) {
     const comments = t.comments || [];
-    const lastComment = comments.reduce((max, c) => (c.date||'') > max ? (c.date||'') : max, '');
-    return lastComment || t.created || '';
+    return comments.reduce((max, c) => (c.date||'') > max ? (c.date||'') : max, '');
+  }
+
+  function _lastActivity(t) {
+    return _lastComment(t) || t.created || '';
   }
 
   const sorted = [...tasks].sort((a, b) => {
@@ -883,10 +886,21 @@ function renderTasks() {
     const aDone = aSt === 'baigta', bDone = bSt === 'baigta';
     if (aDone !== bDone) return aDone ? 1 : -1;
     if (_sortField === 'default') {
-      const statusDiff = (statusOrder[aSt]??1) - (statusOrder[bSt]??1);
-      if (statusDiff !== 0) return statusDiff;
-      const aAct = _lastActivity(a), bAct = _lastActivity(b);
-      return bAct > aAct ? 1 : bAct < aAct ? -1 : 0;
+      // 1) nepradeti – visada viršuje
+      const aNep = aSt === 'nepradeta', bNep = bSt === 'nepradeta';
+      if (aNep !== bNep) return aNep ? -1 : 1;
+      // 2) nepradeti tarpusavyje – pagal paskutinę veiklą (naujausias viršuje)
+      if (aNep && bNep) {
+        const aAct = _lastActivity(a), bAct = _lastActivity(b);
+        return bAct > aAct ? 1 : bAct < aAct ? -1 : 0;
+      }
+      // 3) vykdomi – su komentarais pirmiau (naujausiai pakomentuoti viršuje),
+      //    tada be komentarų pagal sukūrimo datą
+      const aLC = _lastComment(a), bLC = _lastComment(b);
+      if (!!aLC !== !!bLC) return aLC ? -1 : 1;          // su komentaru pirmiau
+      if (aLC && bLC) return bLC > aLC ? 1 : bLC < aLC ? -1 : 0; // naujausias komentaras viršuje
+      const aAct = a.created || '', bAct = b.created || '';
+      return bAct > aAct ? 1 : bAct < aAct ? -1 : 0;    // be komentarų – naujausiai sukurti viršuje
     }
     if (_sortField === 'status') {
       const diff = ((statusOrder[aSt]??1) - (statusOrder[bSt]??1)) * _sortDir;

@@ -864,14 +864,16 @@ function toggleSort(field) {
   renderTasks();
 }
 
-/* ── Urgent flag storage (localStorage only, nesinchronizuoja su Sheets) ── */
-const URGENT_KEY = 'hub_darbai_urgent';
-function loadUrgent() { try { return new Set(JSON.parse(localStorage.getItem(URGENT_KEY)||'[]')); } catch(_){return new Set();} }
-function saveUrgent(s) { localStorage.setItem(URGENT_KEY, JSON.stringify([...s])); }
-function toggleUrgent(id) {
-  const u = loadUrgent();
-  if (u.has(String(id))) u.delete(String(id)); else u.add(String(id));
-  saveUrgent(u);
+/* ── Priority storage: { taskId: 'skubu'|'svarbu'|'' } (localStorage only) ── */
+const PRIORITY_KEY = 'hub_darbai_priority';
+function loadPriority() { try { return JSON.parse(localStorage.getItem(PRIORITY_KEY)||'{}'); } catch(_){return {};} }
+function savePriority(m) { localStorage.setItem(PRIORITY_KEY, JSON.stringify(m)); }
+function cyclePriority(id) {
+  const m = loadPriority();
+  const cur = m[String(id)] || '';
+  const next = cur === '' ? 'skubu' : cur === 'skubu' ? 'svarbu' : '';
+  if (next === '') delete m[String(id)]; else m[String(id)] = next;
+  savePriority(m);
   renderTasks();
 }
 
@@ -880,69 +882,77 @@ function renderTasks() {
   const today = new Date().toISOString().slice(0,10);
   const el = document.getElementById('d-list');
   const CATS = loadCategories();
-  const urgent = loadUrgent();
+  const prio = loadPriority();
 
   if (!tasks.length) {
     el.innerHTML = '<div style="color:#aaa;text-align:center;padding:3rem 0;font-size:14px">Nėra užduočių 🎉</div>';
     return;
   }
 
-  function _lastComment(t) {
-    return (t.comments||[]).reduce((mx,c)=>(c.date||'')>mx?(c.date||''):mx,'');
-  }
+  // Stulpeliai pagal svarbą
+  const PCOLS = [
+    { id:'skubu',  label:'🔴 Skubu',  colBg:'#FEF2F2', hdrColor:'#9B1C1C' },
+    { id:'svarbu', label:'🟡 Svarbu', colBg:'#FFFBEB', hdrColor:'#92400E' },
+    { id:'',       label:'⚪ Eiliniai',colBg:'#ebebed', hdrColor:'#3a3a3c' },
+  ];
 
-  // Rūšiavimas kortelse: skubu → terminas → sukurtas
-  function sortCards(arr) {
+  // Statusų tvarka viduje stulpelio
+  const ST_ORDER = { nepradeta:0, vykdoma:1, baigta:2 };
+  const ST_META = {
+    nepradeta: { label:'Nepradėta', color:'#9B1C1C', bg:'#FEE2E2' },
+    vykdoma:   { label:'Vykdoma',   color:'#1E3A5F', bg:'#DBEAFE' },
+    baigta:    { label:'Baigta',    color:'#14532D', bg:'#DCFCE7' },
+  };
+
+  function sortByStatus(arr) {
     return [...arr].sort((a,b) => {
-      const au = urgent.has(String(a.id)), bu = urgent.has(String(b.id));
-      if (au !== bu) return au ? -1 : 1;
+      const ao = ST_ORDER[_taskStatus(a)]??1, bo = ST_ORDER[_taskStatus(b)]??1;
+      if (ao !== bo) return ao - bo;
+      // viduje to paties statuso — pagal terminą, tada sukūrimo datą
       const adue = a.due||'9999', bdue = b.due||'9999';
       if (adue !== bdue) return adue < bdue ? -1 : 1;
-      const alc = _lastComment(a), blc = _lastComment(b);
-      if (alc && blc && alc !== blc) return blc > alc ? 1 : -1;
       return (b.created||'') > (a.created||'') ? 1 : -1;
     });
   }
 
-  const cols = [
-    { id:'nepradeta', label:'Nepradėta', color:'#9B1C1C', bg:'#FEE2E2' },
-    { id:'vykdoma',   label:'Vykdoma',   color:'#1E3A5F', bg:'#DBEAFE' },
-    { id:'baigta',    label:'Baigta',    color:'#14532D', bg:'#DCFCE7' },
-  ];
-
   const renderCard = t => {
-    const st = _taskStatus(t);
-    const c = CATS.find(x => x.id === t.cat);
+    const st    = _taskStatus(t);
+    const stMeta = ST_META[st] || ST_META.nepradeta;
     const isDone = st === 'baigta';
-    const isUrg  = urgent.has(String(t.id));
-    const commCount = (t.comments||[]).length;
     const isOverdue = !isDone && t.due && t.due < today;
+    const c = CATS.find(x => x.id === t.cat);
+    const commCount = (t.comments||[]).length;
+    const curPrio = prio[String(t.id)] || '';
 
-    const catBadge = c
-      ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30;font-size:10px">${c.label}</span>`
-      : '';
+    const catBadge = c ? `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30;font-size:10px">${c.label}</span>` : '';
     const commBadge = commCount ? `<span style="font-size:11px;color:#8e8e93">💬${commCount}</span>` : '';
     const dueBadge = !t.due ? '' :
       t.due < today ? `<span class="d-due-tag late" style="font-size:10px">⚠ ${t.due}</span>` :
       t.due === today ? `<span class="d-due-tag today" style="font-size:10px">⏰ Šiandien</span>` :
       `<span style="font-size:11px;color:#6e6e73">📅 ${t.due}</span>`;
 
-    // Mygtukų logika: kol ne "baigta" — rodyt → judėjimą
-    const colIdx = cols.findIndex(x => x.id === st);
-    const nextCol = cols[colIdx + 1];
-    const prevCol = cols[colIdx - 1];
-    const moveBtn = nextCol
-      ? `<button class="k-move-btn" onclick="event.stopPropagation();setStatus('${t.id}','${nextCol.id}')" title="Perkelti į ${nextCol.label}">→ ${nextCol.label}</button>`
-      : prevCol
-        ? `<button class="k-move-btn" onclick="event.stopPropagation();setStatus('${t.id}','${prevCol.id}')" title="Grąžinti į ${prevCol.label}">← Atgal</button>`
+    const stBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;color:${stMeta.color};background:${stMeta.bg}">${stMeta.label}</span>`;
+
+    // Statuso perkėlimo mygtukas
+    const stIdx = ST_ORDER[st] ?? 0;
+    const nextSt = Object.keys(ST_ORDER).find(k => ST_ORDER[k] === stIdx + 1);
+    const prevSt = stIdx > 0 ? Object.keys(ST_ORDER).find(k => ST_ORDER[k] === stIdx - 1) : null;
+    const moveBtn = nextSt
+      ? `<button class="k-move-btn" onclick="event.stopPropagation();setStatus('${t.id}','${nextSt}')" title="→ ${ST_META[nextSt].label}">→ ${ST_META[nextSt].label}</button>`
+      : prevSt
+        ? `<button class="k-move-btn" onclick="event.stopPropagation();setStatus('${t.id}','${prevSt}')" title="← Atgal">← Atgal</button>`
         : '';
 
-    return `<div class="k-card${isUrg?' urgent':''}${isDone?' done-card':''}${isOverdue?' overdue':''}">
+    // Svarbos ciklo mygtukas: '' → skubu → svarbu → ''
+    const prioLabel = curPrio === 'skubu' ? '🔴' : curPrio === 'svarbu' ? '🟡' : '⚪';
+    const prioTitle = curPrio === '' ? 'Žymėti kaip skubu' : curPrio === 'skubu' ? 'Žymėti kaip svarbu' : 'Pašalinti žymę';
+
+    return `<div class="k-card${isDone?' done-card':''}${isOverdue?' overdue':''}">
       <div class="k-card-top">
         <span class="k-card-text" onclick="openTaskDetail('${t.id}')">${_esc(t.text)}</span>
-        <button class="k-urgent-btn" onclick="event.stopPropagation();toggleUrgent('${t.id}')" title="${isUrg?'Pašalinti skubu žymę':'Pažymėti kaip skubu'}">${isUrg?'🔴':'⚪'}</button>
+        <button class="k-urgent-btn" onclick="event.stopPropagation();cyclePriority('${t.id}')" title="${prioTitle}">${prioLabel}</button>
       </div>
-      <div class="k-card-meta">${catBadge}${commBadge}${dueBadge}</div>
+      <div class="k-card-meta">${stBadge}${catBadge}${commBadge}${dueBadge}</div>
       <div class="k-card-footer">
         ${moveBtn}
         <button class="k-del-btn" onclick="event.stopPropagation();deleteTask('${t.id}')" title="Ištrinti">×</button>
@@ -950,11 +960,11 @@ function renderTasks() {
     </div>`;
   };
 
-  el.innerHTML = `<div class="kanban-board">${cols.map(col => {
-    const colTasks = sortCards(tasks.filter(t => _taskStatus(t) === col.id));
-    return `<div class="k-col">
+  el.innerHTML = `<div class="kanban-board">${PCOLS.map(pcol => {
+    const colTasks = sortByStatus(tasks.filter(t => (prio[String(t.id)]||'') === pcol.id));
+    return `<div class="k-col" style="background:${pcol.colBg}">
       <div class="k-col-hdr">
-        <span class="k-col-title" style="color:${col.color}">${col.label}</span>
+        <span class="k-col-title" style="color:${pcol.hdrColor}">${pcol.label}</span>
         <span class="k-col-count">${colTasks.length}</span>
       </div>
       ${colTasks.length ? colTasks.map(renderCard).join('') : '<div class="k-empty">Tuščia</div>'}

@@ -61,6 +61,8 @@ body { font-family: 'Montserrat', system-ui, sans-serif; background: #0A0A0A; mi
 .d-cat-btn.active { border-color:#0A0A0A; background:#0A0A0A; color:white; }
 .d-add-btn { font-family:inherit; font-size:14px; font-weight:700; padding:9px 20px; border:none; border-radius:10px; background:#5C7C28; color:white; cursor:pointer; }
 .d-add-btn:hover { background:#7BA935; }
+.d-prio-btn { font-family:inherit; font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; border:2px solid #e0e0e0; background:white; cursor:pointer; color:#6e6e73; transition:all 0.12s; }
+.d-prio-btn.active { border-color:#0A0A0A; background:#0A0A0A; color:white; }
 .d-section-title { font-size:11px; font-weight:700; color:#8e8e93; text-transform:uppercase; letter-spacing:1px; margin:1rem 0 0.5rem; }
 .d-item { background:white; border-radius:14px; padding:1rem 1.1rem; margin-bottom:0.6rem; box-shadow:0 1px 3px rgba(0,0,0,0.07); display:flex; gap:0.8rem; align-items:flex-start; transition:opacity 0.2s; }
 .d-item.done-item { opacity:0.55; }
@@ -308,6 +310,12 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
         <input type="date" id="d-due-in">
       </div>
       <div class="d-cats" id="d-cats"></div>
+      <div style="display:flex;gap:6px;margin-bottom:0.7rem;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:#6e6e73;align-self:center">Svarba:</span>
+        <button class="d-prio-btn active" id="dpb-" onclick="setAddPriority('')">⚪ Eilinis</button>
+        <button class="d-prio-btn" id="dpb-svarbu" onclick="setAddPriority('svarbu')">🟡 Svarbu</button>
+        <button class="d-prio-btn" id="dpb-skubu" onclick="setAddPriority('skubu')">🔴 Skubu</button>
+      </div>
       <button class="d-add-btn" onclick="addTask()">+ Pridėti</button>
     </div>
     <div id="d-list"></div>
@@ -333,6 +341,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
       <div class="td-title" id="td-title"></div>
       <button class="td-close" onclick="closeTaskDetail()">×</button>
     </div>
+    <div id="td-prio-row" style="margin-bottom:0.5rem"></div>
     <div class="td-meta" id="td-meta"></div>
     <div class="td-section">Komentarai</div>
     <div class="td-comments" id="td-comments"></div>
@@ -758,12 +767,22 @@ function _pickCat(id) {
   });
 }
 
+let _addPriority = '';
+function setAddPriority(p) {
+  _addPriority = p;
+  ['','svarbu','skubu'].forEach(v => {
+    const btn = document.getElementById('dpb-' + v);
+    if (btn) btn.classList.toggle('active', v === p);
+  });
+}
+
 function addTask() {
   const txt = document.getElementById('d-text-in').value.trim();
   if (!txt) return;
   const due = document.getElementById('d-due-in').value || null;
+  const newId = Date.now();
   const newTask = {
-    id: Date.now(),
+    id: newId,
     text: txt,
     cat: _activeCat || 'kita',
     due,
@@ -773,13 +792,21 @@ function addTask() {
     doneAt: null,
     comments: []
   };
+  // Išsaugoti prioritetą
+  if (_addPriority) {
+    const m = loadPriority();
+    m[String(newId)] = _addPriority;
+    savePriority(m);
+  }
   const tasks = loadTasks();
   tasks.unshift(newTask);
   saveTasks(tasks);
   document.getElementById('d-text-in').value = '';
   document.getElementById('d-due-in').value = '';
   _activeCat = null;
+  _addPriority = '';
   document.querySelectorAll('.d-cat-btn').forEach(b => b.classList.remove('active'));
+  setAddPriority('');
   renderTasks();
   _refreshDarbaiBar();
   _serverWrite(newTask);
@@ -930,6 +957,7 @@ function renderTasks() {
       t.due < today ? `<span class="d-due-tag late" style="font-size:10px">⚠ ${t.due}</span>` :
       t.due === today ? `<span class="d-due-tag today" style="font-size:10px">⏰ Šiandien</span>` :
       `<span style="font-size:11px;color:#6e6e73">📅 ${t.due}</span>`;
+    const createdBadge = t.created ? `<span style="font-size:10px;color:#b0b0b8">↑ ${t.created}</span>` : '';
 
     const stBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;color:${stMeta.color};background:${stMeta.bg}">${stMeta.label}</span>`;
 
@@ -952,7 +980,8 @@ function renderTasks() {
         <span class="k-card-text" onclick="openTaskDetail('${t.id}')">${_esc(t.text)}</span>
         <button class="k-urgent-btn" onclick="event.stopPropagation();cyclePriority('${t.id}')" title="${prioTitle}">${prioLabel}</button>
       </div>
-      <div class="k-card-meta">${stBadge}${catBadge}${commBadge}${dueBadge}</div>
+      <div class="k-card-meta">${stBadge}${catBadge}${commBadge}</div>
+      <div class="k-card-meta" style="margin-top:4px">${createdBadge}${dueBadge}</div>
       <div class="k-card-footer">
         ${moveBtn}
         <button class="k-del-btn" onclick="event.stopPropagation();deleteTask('${t.id}')" title="Ištrinti">×</button>
@@ -998,16 +1027,28 @@ function renderTaskDetail() {
 
   document.getElementById('td-title').textContent = t.text;
 
+  // Prioriteto keitimas
+  const curPrio = loadPriority()[String(t.id)] || '';
+  const prioOptions = [
+    { v:'',       label:'⚪ Eilinis' },
+    { v:'svarbu', label:'🟡 Svarbu'  },
+    { v:'skubu',  label:'🔴 Skubu'   },
+  ];
+  document.getElementById('td-prio-row').innerHTML = `<div style="display:flex;gap:5px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:700;color:#6e6e73;align-self:center">Svarba:</span>
+    ${prioOptions.map(p => `<button class="d-prio-btn${curPrio===p.v?' active':''}" onclick="setTaskPriority('${t.id}','${p.v}')">${p.label}</button>`).join('')}
+  </div>`;
+
   // Meta žymos
   let meta = `<button class="d-status-btn ${st}" style="cursor:default">${stDef.label}</button>`;
   if (c) meta += `<span class="d-badge" style="color:${c.color};background:${c.bg};border-color:${c.color}30">${c.label}</span>`;
   else if (t.cat) meta += `<span class="d-badge" style="color:#5a5a5a;background:#eef0f2;border-color:#d0d4da">${_esc(t.cat)}</span>`;
+  if (t.created) meta += `<span style="font-size:11px;color:#aaa">Įvesta: ${t.created}</span>`;
   if (t.due) {
-    if (t.due < today) meta += `<span class="d-due-tag late">⚠ ${t.due} — vėluoja!</span>`;
-    else if (t.due === today) meta += `<span class="d-due-tag today">⏰ Šiandien</span>`;
-    else meta += `<span class="d-due-tag future">📅 ${t.due}</span>`;
+    if (t.due < today) meta += `<span class="d-due-tag late">⚠ Terminas: ${t.due} — vėluoja!</span>`;
+    else if (t.due === today) meta += `<span class="d-due-tag today">⏰ Terminas: šiandien</span>`;
+    else meta += `<span class="d-due-tag future">📅 Terminas: ${t.due}</span>`;
   }
-  if (t.created) meta += `<span style="font-size:11px;color:#aaa">📅 Įvesta: ${t.created}</span>`;
   document.getElementById('td-meta').innerHTML = meta;
 
   // Komentarai
@@ -1024,6 +1065,14 @@ function renderTaskDetail() {
     : '<div style="color:#aaa;font-size:13px;padding:4px 0">Komentarų dar nėra</div>';
   document.getElementById('td-comments').innerHTML = commHtml;
   document.getElementById('td-comment-in').value = '';
+}
+
+function setTaskPriority(id, prio) {
+  const m = loadPriority();
+  if (prio === '') delete m[String(id)]; else m[String(id)] = prio;
+  savePriority(m);
+  renderTasks();
+  renderTaskDetail();
 }
 
 function addCommentFromDetail() {

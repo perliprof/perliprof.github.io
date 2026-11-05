@@ -371,12 +371,12 @@ const ROLES = {
   },
   'Dir26xPrl!': {
     label: 'Direktorius',
-    pages: ['pardavimai', 'gamyba', 'zaliavos', 'pamainos', 'darbai', 'projektai', 'inventorizacija', 'iranga'],
+    pages: ['pardavimai', 'gamyba', 'zaliavos', 'pamainos', 'darbai', 'projektai', 'inventorizacija', 'iranga', 'gedimai'],
     tokens: { gam_secret: 'GamZal27kx!', zal_secret: 'GamZal27kx!', po_secret: 'Perlitas26!opr20' }
   },
   'GV27nauj!': {
     label: 'Gamybos vadovas',
-    pages: ['gamyba', 'zaliavos', 'pamainos', 'inventorizacija', 'iranga'],
+    pages: ['gamyba', 'zaliavos', 'pamainos', 'inventorizacija', 'iranga', 'gedimai'],
     tokens: { gam_secret: 'GamZal27kx!', zal_secret: 'GamZal27kx!' }
   }
 };
@@ -388,6 +388,7 @@ const PAGES = {
   pamainos:        { title:'Pamainos lenktynės', emoji:'🏆', desc:'Realaus laiko TV dashboard',                                  url:'/pamainos-lenktynes/',                     color:'#A8D44A' },
   inventorizacija: { title:'Inventorizacija',    emoji:'🔧', desc:'Įrankiai ir atsarginės dalys — info ruošiama',                url:'/pamainos-lenktynes/inventorizacija.html', color:'#3a3a3a' },
   iranga:          { title:'Įrangos priežiūra',  emoji:'⚙️', desc:'Priežiūros grafikai ir dalių keitimo istorija — info ruošiama', url:'/pamainos-lenktynes/iranga.html',        color:'#3a3a3a' },
+  gedimai:         { title:'Gedimų sąrašas',     emoji:'🔴', desc:'Įrangos gedimai ir jų sprendimas — info ruošiama',              url:'',                                          color:'#3a3a3a' },
   darbai:          { title:'Darbai',             emoji:'📋', desc:'Užduočių sąrašas — nurody, atlikti, sekti',                   url:'',                                          color:'#0A0A0A' },
   // Privatus claude.ai puslapis: turinys ne čia, atsidaro naujame skirtuke (reikia claude.ai prisijungimo)
   projektai:       { title:'Projektai',          emoji:'🚀', desc:'Planai ir tyrimai — atsidaro naujame lange',                  url:'https://claude.ai/artifact/BAnysoN835ub7KYtA3gjLM', color:'#0A2342', external:true }

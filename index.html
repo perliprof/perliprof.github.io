@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Perliprof · Įrankiai</title>
+<title>Perliprof · Darbo erdvė</title>
 <meta name="theme-color" content="#0A0A0A">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="manifest" href="manifest.json">
@@ -240,7 +240,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 </div>
 
 <div class="auth-box" id="auth-box">
-  <div class="auth-title">Perliprof įrankiai</div>
+  <div class="auth-title">Darbo erdvė</div>
   <p class="auth-sub">Įveskite savo prieigos kodą</p>
   <input type="password" id="pw-input" placeholder="Kodas…" onkeydown="if(event.key==='Enter')login()">
   <button class="auth-btn" onclick="login()">Prisijungti</button>
@@ -296,7 +296,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 <!-- Darbai overlay -->
 <div id="darbai-overlay">
   <div id="darbai-bar">
-    <button onclick="closeDarbai()">← Hub</button>
+    <button onclick="closeDarbai()">← Darbo erdvė</button>
     <span>📋 Darbai</span>
     <span id="darbai-sync-status" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.55);margin-left:auto"></span>
     <button onclick="exportTasks()" style="font-size:12px;padding:5px 12px">📤 Eksportuoti</button>
@@ -356,7 +356,7 @@ body > *:not(.perlite-fall) { position: relative; z-index: 1; }
 <!-- iframe overlay -->
 <div id="frame-overlay">
   <div id="frame-bar">
-    <button id="frame-back" onclick="closeFrame()">← Hub</button>
+    <button id="frame-back" onclick="closeFrame()">← Darbo erdvė</button>
     <span id="frame-title"></span>
   </div>
   <iframe id="frame-view" allow="fullscreen"></iframe>
